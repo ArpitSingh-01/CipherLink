@@ -41,7 +41,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { getIdentity, getAllFriends, saveFriend, getFriend, updateFriendLastMessage, blockUser, unblockUser, getBlockedUsers } from '@/lib/storage';
+import { getIdentity, getAllFriends, saveFriend, getFriend, updateFriendLastMessage, blockUser, unblockUser, getBlockedUsers, clearIdentity } from '@/lib/storage';
 import { encryptMessage, decryptMessage, hexToBytes, generateFriendCode } from '@/lib/crypto';
 import { TTL_OPTIONS, DEFAULT_TTL, type LocalFriend, type DecryptedMessage } from '@shared/schema';
 import { apiRequest, queryClient } from '@/lib/queryClient';
@@ -716,6 +716,12 @@ export function ChatPage() {
       });
     }
   };
+
+  const handleLogout = async () => {
+    await clearIdentity();
+    queryClient.clear();
+    setLocation('/');
+  };
   
   if (!state.identity) {
     return (
@@ -785,9 +791,9 @@ export function ChatPage() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start">
-                  <DropdownMenuItem onClick={() => setLocation('/')}>
+                  <DropdownMenuItem onClick={handleLogout}>
                     <LogOut className="w-4 h-4 mr-2" />
-                    Back to Home
+                    Logout
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
