@@ -65,6 +65,8 @@ export const messages = pgTable("messages", {
   nonce: text("nonce").notNull(),
   ephemeralPublicKey: text("ephemeral_public_key").notNull(),
   ttlSeconds: integer("ttl_seconds").notNull(),
+  isRead: boolean("is_read").default(false),
+  reactions: text("reactions"), // JSON string: { "user_key": "emoji", ... }
   createdAt: timestamp("created_at").defaultNow(),
   expiresAt: timestamp("expires_at").notNull(),
 });
@@ -130,7 +132,14 @@ export interface DecryptedMessage {
   receiverPublicKey: string;
   plaintext: string;
   ttlSeconds: number;
+  isRead: boolean;
+  reactions: Record<string, string>;
   createdAt: Date;
   expiresAt: Date;
   isMine: boolean;
+}
+
+// Typing indicator state (in-memory only)
+export interface TypingState {
+  [publicKey: string]: { typingWith: string; expiresAt: number };
 }

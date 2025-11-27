@@ -35,12 +35,19 @@ export interface IStorage {
   getAllMessagesForUser(publicKey: string): Promise<Message[]>;
   deleteExpiredMessages(): Promise<void>;
   deleteMessage(id: string): Promise<void>;
+  markMessageAsRead(messageId: string): Promise<void>;
+  addReaction(messageId: string, userPublicKey: string, emoji: string): Promise<void>;
+  removeReaction(messageId: string, userPublicKey: string): Promise<void>;
   
   // Blocklist
   blockUser(block: InsertBlock): Promise<Block>;
   unblockUser(blockerPublicKey: string, blockedPublicKey: string): Promise<void>;
   isBlocked(blockerPublicKey: string, blockedPublicKey: string): Promise<boolean>;
   getBlockedUsers(publicKey: string): Promise<string[]>;
+  
+  // Typing indicators
+  setTyping(userPublicKey: string, friendPublicKey: string): void;
+  isTyping(userPublicKey: string, friendPublicKey: string): boolean;
 }
 
 export class MemStorage implements IStorage {
@@ -49,6 +56,7 @@ export class MemStorage implements IStorage {
   private friends: Map<string, Friend>;
   private messages: Map<string, Message>;
   private blocklist: Map<string, Block>;
+  private typingIndicators: Map<string, number>; // key: "userKey:friendKey", value: expireTime
 
   constructor() {
     this.users = new Map();
@@ -56,12 +64,23 @@ export class MemStorage implements IStorage {
     this.friends = new Map();
     this.messages = new Map();
     this.blocklist = new Map();
+    this.typingIndicators = new Map();
     
     // Set up cleanup interval for expired messages and codes
     setInterval(() => {
       this.deleteExpiredMessages();
       this.deleteExpiredFriendCodes();
+      this.cleanupTypingIndicators();
     }, 30000); // Every 30 seconds
+  }
+  
+  private cleanupTypingIndicators(): void {
+    const now = Date.now();
+    for (const [key, expireTime] of this.typingIndicators.entries()) {
+      if (now > expireTime) {
+        this.typingIndicators.delete(key);
+      }
+    }
   }
 
   // Users
@@ -218,6 +237,31 @@ export class MemStorage implements IStorage {
   async deleteMessage(id: string): Promise<void> {
     this.messages.delete(id);
   }
+  
+  async markMessageAsRead(messageId: string): Promise<void> {
+    const message = Array.from(this.messages.values()).find(m => m.id === messageId);
+    if (message) {
+      message.isRead = true;
+    }
+  }
+  
+  async addReaction(messageId: string, userPublicKey: string, emoji: string): Promise<void> {
+    const message = Array.from(this.messages.values()).find(m => m.id === messageId);
+    if (message) {
+      const reactions = message.reactions ? JSON.parse(message.reactions) : {};
+      reactions[userPublicKey] = emoji;
+      message.reactions = JSON.stringify(reactions);
+    }
+  }
+  
+  async removeReaction(messageId: string, userPublicKey: string): Promise<void> {
+    const message = Array.from(this.messages.values()).find(m => m.id === messageId);
+    if (message) {
+      const reactions = message.reactions ? JSON.parse(message.reactions) : {};
+      delete reactions[userPublicKey];
+      message.reactions = JSON.stringify(reactions);
+    }
+  }
 
   // Blocklist
   async blockUser(insertBlock: InsertBlock): Promise<Block> {
@@ -247,6 +291,23 @@ export class MemStorage implements IStorage {
     return Array.from(this.blocklist.values())
       .filter((block) => block.blockerPublicKey === publicKey)
       .map((block) => block.blockedPublicKey);
+  }
+  
+  // Typing indicators
+  setTyping(userPublicKey: string, friendPublicKey: string): void {
+    const key = `${userPublicKey}:${friendPublicKey}`;
+    this.typingIndicators.set(key, Date.now() + 3000); // 3 second timeout
+  }
+  
+  isTyping(userPublicKey: string, friendPublicKey: string): boolean {
+    const key = `${userPublicKey}:${friendPublicKey}`;
+    const expireTime = this.typingIndicators.get(key);
+    if (!expireTime) return false;
+    if (Date.now() > expireTime) {
+      this.typingIndicators.delete(key);
+      return false;
+    }
+    return true;
   }
 }
 
