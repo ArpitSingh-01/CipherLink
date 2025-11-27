@@ -385,6 +385,14 @@ function RestoreStep({
         </CardContent>
       </Card>
       
+      <Card className="mb-6 bg-primary/5 border-primary/20">
+        <CardContent className="p-4">
+          <p className="text-sm text-muted-foreground">
+            <span className="font-medium text-foreground">How it works:</span> Your identity is recognized by your cryptographic public key, not your display name. Friends will know it's you even if you have a different display name on a new device.
+          </p>
+        </CardContent>
+      </Card>
+      
       <div className="flex gap-4">
         <Button variant="outline" onClick={onBack}>
           <ArrowLeft className="w-4 h-4 mr-2" />
