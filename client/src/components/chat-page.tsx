@@ -226,7 +226,7 @@ function AddFriendDialog({
   const redeemCodeMutation = useMutation({
     mutationFn: async () => {
       const response = await apiRequest('POST', '/api/friend-codes/redeem', {
-        code: enteredCode.toUpperCase(),
+        code: enteredCode.trim().toUpperCase(),
         redeemerPublicKey: publicKey,
         friendName: friendName || 'Anonymous',
       });
