@@ -614,6 +614,8 @@ export function ChatPage() {
             receiverPublicKey: msg.receiverPublicKey,
             plaintext,
             ttlSeconds: msg.ttlSeconds,
+            isRead: msg.isRead || false,
+            reactions: msg.reactions ? JSON.parse(msg.reactions) : {},
             createdAt: new Date(msg.createdAt),
             expiresAt: new Date(msg.expiresAt),
             isMine: msg.senderPublicKey === state.identity.publicKey,
