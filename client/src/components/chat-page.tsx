@@ -592,8 +592,8 @@ export function ChatPage() {
     refetchInterval: 3000, // Poll every 3 seconds
   });
   
-  // Store sent messages temporarily for display before server returns them
-  const [pendingMessages, setPendingMessages] = useState<Map<string, string>>(new Map());
+  // Store optimistic sent messages locally
+  const [sentMessages, setSentMessages] = useState<DecryptedMessage[]>([]);
   
   // Decrypt messages when they change
   useEffect(() => {
@@ -606,12 +606,9 @@ export function ChatPage() {
         try {
           const isSentByMe = msg.senderPublicKey === state.identity.publicKey;
           
-          // For messages we sent, check if we have the plaintext stored
           let plaintext = '';
-          if (isSentByMe && pendingMessages.has(msg.id)) {
-            plaintext = pendingMessages.get(msg.id)!;
-          } else if (!isSentByMe) {
-            // For received messages, decrypt normally
+          if (!isSentByMe) {
+            // For received messages, decrypt with our private key
             plaintext = await decryptMessage(
               msg.ciphertext,
               msg.nonce,
@@ -619,8 +616,15 @@ export function ChatPage() {
               hexToBytes(state.identity.privateKey)
             );
           } else {
-            // Skip - can't decrypt our own sent messages without receiver's private key
-            continue;
+            // For our sent messages, find the plaintext from sentMessages
+            const sentMsg = sentMessages.find(m => m.id === msg.id);
+            if (sentMsg) {
+              plaintext = sentMsg.plaintext;
+            } else {
+              // Shouldn't happen, but skip if we can't find the plaintext
+              console.warn('Sent message not found in local cache:', msg.id);
+              continue;
+            }
           }
           
           decrypted.push({
@@ -633,18 +637,26 @@ export function ChatPage() {
             reactions: msg.reactions ? JSON.parse(msg.reactions) : {},
             createdAt: new Date(msg.createdAt),
             expiresAt: new Date(msg.expiresAt),
-            isMine: true,
+            isMine: isSentByMe,
           });
         } catch (error) {
           console.error('Failed to decrypt message:', error);
         }
       }
       
-      setMessages(decrypted.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime()));
+      // Merge decrypted messages with any optimistic sent messages not yet on server
+      const serverIds = new Set(decrypted.map(m => m.id));
+      const optimistic = sentMessages.filter(m => !serverIds.has(m.id));
+      
+      const allMessages = [...decrypted, ...optimistic].sort(
+        (a, b) => a.createdAt.getTime() - b.createdAt.getTime()
+      );
+      
+      setMessages(allMessages);
     };
     
     decryptMessages();
-  }, [serverMessages, state.identity, state.selectedFriend, pendingMessages]);
+  }, [serverMessages, state.identity, state.selectedFriend, sentMessages]);
   
   // Scroll to bottom when messages change
   useEffect(() => {
