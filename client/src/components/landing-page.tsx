@@ -224,12 +224,20 @@ function SecuritySection() {
                 <span className="font-medium">Your Message</span>
               </div>
               <div className="h-px bg-gradient-to-r from-primary/50 to-transparent my-4" />
-              <div className="flex items-center justify-between text-sm text-muted-foreground">
-                <span>Encrypted locally</span>
-                <Lock className="w-4 h-4 text-primary animate-neon-pulse" />
-                <span>Transmitted securely</span>
-                <Lock className="w-4 h-4 text-primary animate-neon-pulse" />
-                <span>Decrypted by recipient</span>
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-6 text-sm text-muted-foreground">
+                <div className="flex items-center gap-2">
+                  <span>Encrypted locally</span>
+                  <Lock className="w-4 h-4 text-primary animate-neon-pulse" />
+                </div>
+                <div className="hidden sm:block w-px h-4 bg-border" />
+                <div className="flex items-center gap-2">
+                  <span>Transmitted securely</span>
+                  <Lock className="w-4 h-4 text-primary animate-neon-pulse" />
+                </div>
+                <div className="hidden sm:block w-px h-4 bg-border" />
+                <div className="flex items-center gap-2">
+                  <span>Decrypted by recipient</span>
+                </div>
               </div>
             </div>
           </motion.div>
