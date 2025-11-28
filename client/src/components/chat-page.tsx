@@ -592,6 +592,9 @@ export function ChatPage() {
     refetchInterval: 3000, // Poll every 3 seconds
   });
   
+  // Store sent messages temporarily for display before server returns them
+  const [pendingMessages, setPendingMessages] = useState<Map<string, string>>(new Map());
+  
   // Decrypt messages when they change
   useEffect(() => {
     const decryptMessages = async () => {
@@ -601,12 +604,24 @@ export function ChatPage() {
       
       for (const msg of serverMessages as any[]) {
         try {
-          const plaintext = await decryptMessage(
-            msg.ciphertext,
-            msg.nonce,
-            msg.ephemeralPublicKey,
-            hexToBytes(state.identity.privateKey)
-          );
+          const isSentByMe = msg.senderPublicKey === state.identity.publicKey;
+          
+          // For messages we sent, check if we have the plaintext stored
+          let plaintext = '';
+          if (isSentByMe && pendingMessages.has(msg.id)) {
+            plaintext = pendingMessages.get(msg.id)!;
+          } else if (!isSentByMe) {
+            // For received messages, decrypt normally
+            plaintext = await decryptMessage(
+              msg.ciphertext,
+              msg.nonce,
+              msg.ephemeralPublicKey,
+              hexToBytes(state.identity.privateKey)
+            );
+          } else {
+            // Skip - can't decrypt our own sent messages without receiver's private key
+            continue;
+          }
           
           decrypted.push({
             id: msg.id,
@@ -618,7 +633,7 @@ export function ChatPage() {
             reactions: msg.reactions ? JSON.parse(msg.reactions) : {},
             createdAt: new Date(msg.createdAt),
             expiresAt: new Date(msg.expiresAt),
-            isMine: msg.senderPublicKey === state.identity.publicKey,
+            isMine: true,
           });
         } catch (error) {
           console.error('Failed to decrypt message:', error);
@@ -629,7 +644,7 @@ export function ChatPage() {
     };
     
     decryptMessages();
-  }, [serverMessages, state.identity, state.selectedFriend]);
+  }, [serverMessages, state.identity, state.selectedFriend, pendingMessages]);
   
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -667,7 +682,13 @@ export function ChatPage() {
       
       return { message, ttl };
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      // Store plaintext for display of sent message
+      setPendingMessages(prev => {
+        const newMap = new Map(prev);
+        newMap.set(`temp-${Date.now()}`, data.message);
+        return newMap;
+      });
       queryClientRef.invalidateQueries({ 
         queryKey: ['/api/messages', state.identity?.publicKey, state.selectedFriend?.publicKey] 
       });
