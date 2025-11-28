@@ -695,12 +695,22 @@ export function ChatPage() {
       return { message, ttl };
     },
     onSuccess: (data) => {
-      // Store plaintext for display of sent message
-      setPendingMessages(prev => {
-        const newMap = new Map(prev);
-        newMap.set(`temp-${Date.now()}`, data.message);
-        return newMap;
-      });
+      // Add optimistic message to local state with generated ID
+      const optimisticMsg: DecryptedMessage = {
+        id: `opt-${Date.now()}`,
+        senderPublicKey: state.identity?.publicKey || '',
+        receiverPublicKey: state.selectedFriend?.publicKey || '',
+        plaintext: data.message,
+        ttlSeconds: data.ttl,
+        isRead: false,
+        reactions: {},
+        createdAt: new Date(),
+        expiresAt: new Date(Date.now() + data.ttl * 1000),
+        isMine: true,
+      };
+      
+      setSentMessages(prev => [...prev, optimisticMsg]);
+      
       queryClientRef.invalidateQueries({ 
         queryKey: ['/api/messages', state.identity?.publicKey, state.selectedFriend?.publicKey] 
       });
