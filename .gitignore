@@ -3,7 +3,7 @@ node_modules/
 
 # Build output
 dist/
-api/index.mjs
+api/index.js
 
 # Environment files (NEVER commit these)
 .env

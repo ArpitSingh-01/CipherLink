@@ -59,14 +59,11 @@ async function buildAll() {
     entryPoints: ["api/index.ts"],
     platform: "node",
     bundle: true,
-    format: "esm",
-    outfile: "api/index.mjs",
+    format: "cjs",
+    outfile: "api/index.js",
     alias: {
       "@shared": "./shared",
       "@": "./client/src",
-    },
-    banner: {
-      js: 'import { createRequire } from "module"; const require = createRequire(import.meta.url);',
     },
     // Externalize all node_modules — Vercel has them at runtime
     // This avoids trying to bundle native modules like lightningcss
