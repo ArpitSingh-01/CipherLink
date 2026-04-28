@@ -252,10 +252,10 @@ function AddFriendDialog({
       setGeneratedCode(data.code);
       setExpiresAt(data.expiresAt);
     },
-    onError: () => {
+    onError: (data) => {
       toast({
         title: 'Error',
-        description: 'Could not generate friend code',
+        description: `Could not generate friend code ;; ${data}`,
         variant: 'destructive',
       });
     },
