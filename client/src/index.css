@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* LIGHT MODE - CipherLink Futuristic Theme */
+/* ─── LIGHT MODE ─────────────────────────────────────────────────────── */
 :root {
   --button-outline: rgba(0,0,0, .10);
   --badge-outline: rgba(0,0,0, .05);
@@ -57,12 +57,9 @@
   --shadow-2xl: 0px 2px 0px 0px hsl(0 0% 0% / 0.12);
   --tracking-normal: 0em;
   --spacing: 0.25rem;
-  
-  /* Neon glow effects */
   --glow-primary: 0 0 20px hsl(189 100% 50% / 0.3);
   --glow-secondary: 0 0 20px hsl(280 85% 60% / 0.3);
 
-  /* Fallback for older browsers */
   --sidebar-primary-border: hsl(var(--sidebar-primary));
   --sidebar-primary-border: hsl(from hsl(var(--sidebar-primary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
   --sidebar-accent-border: hsl(var(--sidebar-accent));
@@ -79,61 +76,72 @@
   --destructive-border: hsl(from hsl(var(--destructive)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
 }
 
-/* DARK MODE - CipherLink Futuristic Neon Theme */
+/* ─── DARK MODE ──────────────────────────────────────────────────────── */
 .dark {
-  --button-outline: rgba(255,255,255, .10);
+  --button-outline: rgba(255,255,255, .08);
   --badge-outline: rgba(255,255,255, .05);
-  --opaque-button-border-intensity: 9;
-  --elevate-1: rgba(255,255,255, .04);
-  --elevate-2: rgba(255,255,255, .09);
-  --background: 200 15% 6%;
-  --foreground: 200 10% 95%;
-  --border: 200 10% 15%;
-  --card: 200 12% 9%;
-  --card-foreground: 200 10% 95%;
-  --card-border: 200 10% 14%;
-  --sidebar: 200 12% 8%;
-  --sidebar-foreground: 200 10% 95%;
-  --sidebar-border: 200 10% 14%;
-  --sidebar-primary: 189 100% 50%;
-  --sidebar-primary-foreground: 200 15% 6%;
-  --sidebar-accent: 200 15% 14%;
-  --sidebar-accent-foreground: 200 10% 90%;
-  --sidebar-ring: 189 100% 50%;
-  --popover: 200 12% 10%;
-  --popover-foreground: 200 10% 95%;
-  --popover-border: 200 10% 16%;
-  --primary: 189 100% 50%;
-  --primary-foreground: 200 15% 6%;
-  --secondary: 280 75% 60%;
-  --secondary-foreground: 0 0% 100%;
-  --muted: 200 10% 18%;
-  --muted-foreground: 200 8% 60%;
-  --accent: 200 12% 16%;
-  --accent-foreground: 200 10% 90%;
-  --destructive: 0 75% 55%;
-  --destructive-foreground: 0 0% 100%;
-  --input: 200 10% 22%;
-  --ring: 189 100% 50%;
-  --chart-1: 189 100% 55%;
-  --chart-2: 280 85% 65%;
-  --chart-3: 320 80% 60%;
-  --chart-4: 160 80% 55%;
-  --chart-5: 220 85% 65%;
-  --shadow-2xs: 0px 2px 0px 0px hsl(0 0% 0% / 0.15);
-  --shadow-xs: 0px 2px 0px 0px hsl(0 0% 0% / 0.18);
-  --shadow-sm: 0px 2px 0px 0px hsl(0 0% 0% / 0.20), 0px 1px 2px -1px hsl(0 0% 0% / 0.25);
-  --shadow: 0px 2px 0px 0px hsl(0 0% 0% / 0.22), 0px 1px 2px -1px hsl(0 0% 0% / 0.28);
-  --shadow-md: 0px 2px 0px 0px hsl(0 0% 0% / 0.25), 0px 2px 4px -1px hsl(0 0% 0% / 0.32);
-  --shadow-lg: 0px 2px 0px 0px hsl(0 0% 0% / 0.28), 0px 4px 6px -1px hsl(0 0% 0% / 0.35);
-  --shadow-xl: 0px 2px 0px 0px hsl(0 0% 0% / 0.32), 0px 8px 10px -1px hsl(0 0% 0% / 0.40);
-  --shadow-2xl: 0px 2px 0px 0px hsl(0 0% 0% / 0.38);
+  --opaque-button-border-intensity: 6;
+  --elevate-1: rgba(255,255,255, .03);
+  --elevate-2: rgba(255,255,255, .07);
   
-  /* Neon glow effects */
-  --glow-primary: 0 0 30px hsl(189 100% 50% / 0.4);
-  --glow-secondary: 0 0 30px hsl(280 85% 60% / 0.4);
+  /* Layered tones: base #050505 (hsl 0 0 2), secondary #0a0a0a (hsl 0 0 4) */
+  --background: 0 0% 2%; 
+  --foreground: 0 0% 92%;
+  --border: 0 0% 12%;
+  --card: 0 0% 4%;
+  --card-foreground: 0 0% 92%;
+  --card-border: 0 0% 10%;
+  --sidebar: 0 0% 3%;
+  --sidebar-foreground: 0 0% 90%;
+  --sidebar-border: 0 0% 10%;
+  
+  /* Primary CTA: Cyan/Teal (reserved for highlights) */
+  --primary: 189 75% 45%;
+  --primary-foreground: 0 0% 100%;
+  
+  /* Secondary Accent: Deep violet / indigo */
+  --sidebar-primary: 260 50% 50%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 260 20% 15%;
+  --sidebar-accent-foreground: 260 40% 90%;
+  --sidebar-ring: 260 50% 50%;
+  
+  --popover: 0 0% 4%;
+  --popover-foreground: 0 0% 90%;
+  --popover-border: 0 0% 12%;
+  
+  --secondary: 260 30% 20%;
+  --secondary-foreground: 0 0% 95%;
+  --muted: 0 0% 10%;
+  --muted-foreground: 0 0% 55%;
+  --accent: 0 0% 8%;
+  --accent-foreground: 0 0% 90%;
+  --destructive: 0 75% 45%;
+  --destructive-foreground: 0 0% 100%;
+  --input: 0 0% 14%;
+  --ring: 189 75% 45%;
+  
+  /* Charts - toned down */
+  --chart-1: 189 60% 50%;
+  --chart-2: 260 50% 55%;
+  --chart-3: 320 40% 55%;
+  --chart-4: 160 40% 50%;
+  --chart-5: 220 50% 60%;
+  
+  /* Softer shadows for depth */
+  --shadow-2xs: 0px 2px 0px 0px rgba(0,0,0, 0.2);
+  --shadow-xs: 0px 2px 0px 0px rgba(0,0,0, 0.3);
+  --shadow-sm: 0px 2px 0px 0px rgba(0,0,0, 0.4), 0px 1px 2px -1px rgba(0,0,0, 0.4);
+  --shadow: 0px 3px 0px 0px rgba(0,0,0, 0.4), 0px 2px 4px -1px rgba(0,0,0, 0.5);
+  --shadow-md: 0px 4px 0px 0px rgba(0,0,0, 0.4), 0px 4px 8px -1px rgba(0,0,0, 0.6);
+  --shadow-lg: 0px 4px 0px 0px rgba(0,0,0, 0.4), 0px 8px 12px -1px rgba(0,0,0, 0.7);
+  --shadow-xl: 0px 4px 0px 0px rgba(0,0,0, 0.4), 0px 12px 16px -1px rgba(0,0,0, 0.8);
+  --shadow-2xl: 0px 4px 0px 0px rgba(0,0,0, 0.5);
+  
+  /* Natural glows instead of mechanical neon */
+  --glow-primary: 0 4px 30px hsl(189 75% 45% / 0.15);
+  --glow-secondary: 0 4px 30px hsl(260 50% 50% / 0.15);
 
-  /* Fallback for older browsers */
   --sidebar-primary-border: hsl(var(--sidebar-primary));
   --sidebar-primary-border: hsl(from hsl(var(--sidebar-primary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
   --sidebar-accent-border: hsl(var(--sidebar-accent));
@@ -149,6 +157,8 @@
   --destructive-border: hsl(var(--destructive));
   --destructive-border: hsl(from hsl(var(--destructive)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
 }
+
+/* ─── Base ───────────────────────────────────────────────────────────── */
 
 @layer base {
   * {
@@ -158,40 +168,42 @@
   body {
     @apply font-sans antialiased bg-background text-foreground;
   }
-  
-  /* Custom scrollbar for dark theme */
+
   ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
   }
-  
+
   ::-webkit-scrollbar-track {
     background: hsl(var(--background));
   }
-  
+
   ::-webkit-scrollbar-thumb {
     background: hsl(var(--muted));
     border-radius: 4px;
   }
-  
+
   ::-webkit-scrollbar-thumb:hover {
     background: hsl(var(--muted-foreground) / 0.5);
   }
 }
 
+/* ─── Utilities ──────────────────────────────────────────────────────── */
+
 @layer utilities {
-  /* Hide ugly search cancel button in Chrome until we can style it properly */
+  /* Search cancel button */
   input[type="search"]::-webkit-search-cancel-button {
     @apply hidden;
   }
 
-  /* Placeholder styling for contentEditable div */
+  /* ContentEditable placeholder */
   [contenteditable][data-placeholder]:empty::before {
     content: attr(data-placeholder);
     color: hsl(var(--muted-foreground));
     pointer-events: none;
   }
 
+  /* Elevation system */
   .no-default-hover-elevate {}
   .no-default-active-elevate {}
 
@@ -250,45 +262,32 @@
   .border.hover-elevate:not(.no-hover-interaction-elevate)::after {
     inset: -1px;
   }
-  
-  /* Glassmorphism utility */
+
+  /* Glass */
   .glass {
     @apply backdrop-blur-xl bg-white/5 border border-white/10;
   }
-  
+
   .dark .glass {
     @apply backdrop-blur-xl bg-black/20 border border-white/10;
   }
-  
-  /* Neon glow utilities */
+
+  /* Glow */
   .glow-primary {
     box-shadow: var(--glow-primary);
   }
-  
+
   .glow-secondary {
     box-shadow: var(--glow-secondary);
   }
-  
-  /* Gradient text utility */
+
+  /* Gradient text */
   .gradient-text {
     @apply bg-gradient-to-r from-primary via-cyan-400 to-primary bg-clip-text text-transparent;
   }
-  
-  /* Neon border animation */
-  @keyframes neon-pulse {
-    0%, 100% {
-      box-shadow: 0 0 5px hsl(189 100% 50% / 0.5), 0 0 20px hsl(189 100% 50% / 0.3);
-    }
-    50% {
-      box-shadow: 0 0 10px hsl(189 100% 50% / 0.8), 0 0 40px hsl(189 100% 50% / 0.5);
-    }
-  }
-  
-  .animate-neon-pulse {
-    animation: neon-pulse 2s ease-in-out infinite;
-  }
-  
-  /* Message bubble animations */
+
+  /* ─── Chat & App animations ─────────────────────────────────────── */
+
   @keyframes slide-up-fade {
     from {
       opacity: 0;
@@ -299,26 +298,20 @@
       transform: translateY(0);
     }
   }
-  
+
   .animate-slide-up {
     animation: slide-up-fade 0.3s ease-out;
   }
-  
-  /* Self-destruct countdown pulse */
+
   @keyframes destruct-pulse {
-    0%, 100% {
-      opacity: 1;
-    }
-    50% {
-      opacity: 0.5;
-    }
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
   }
-  
+
   .animate-destruct {
     animation: destruct-pulse 1s ease-in-out infinite;
   }
-  
-  /* Reveal animation for friend codes */
+
   @keyframes reveal-char {
     from {
       opacity: 0;
@@ -329,28 +322,26 @@
       transform: translateY(0);
     }
   }
-  
+
   .animate-reveal {
     animation: reveal-char 0.15s ease-out forwards;
   }
-  
-  /* Floating particles background */
-  @keyframes float {
-    0%, 100% {
-      transform: translateY(0) translateX(0);
-    }
-    25% {
-      transform: translateY(-20px) translateX(10px);
-    }
-    50% {
-      transform: translateY(-10px) translateX(-10px);
-    }
-    75% {
-      transform: translateY(-30px) translateX(5px);
-    }
+
+  /* ─── Perspective utility for 3D transforms ─────────────────────── */
+
+  .perspective-\[1200px\] {
+    perspective: 1200px;
   }
-  
-  .animate-float {
-    animation: float 6s ease-in-out infinite;
+}
+
+/* ─── Reduced motion ─────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }

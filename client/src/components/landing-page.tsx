@@ -1,345 +1,351 @@
 import { Link } from 'wouter';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Shield, Lock, Clock, Users, Eye, Smartphone, KeyRound, MessageSquare, UserX, Zap, CheckCircle2 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { useRef, useEffect, useState, useCallback } from 'react';
+import { Shield, Lock, ArrowRight, Eye, Fingerprint, Timer, Server, KeyRound, CheckCircle2 } from 'lucide-react';
+import { motion, useScroll, useTransform, useMotionValue, useSpring, useInView } from 'framer-motion';
 
-const fadeInUp = {
-  initial: { opacity: 0, y: 20 },
-  animate: { opacity: 1, y: 0 },
-  transition: { duration: 0.5 }
-};
+/* ─── Hooks ─────────────────────────────────────────────────────────── */
 
-const staggerContainer = {
-  animate: {
-    transition: {
-      staggerChildren: 0.1
-    }
-  }
-};
+function useParallax(ref: React.RefObject<HTMLElement>, range: number = 100) {
+  const { scrollYProgress } = useScroll({
+    target: ref,
+    offset: ['start end', 'end start'],
+  });
+  return useTransform(scrollYProgress, [0, 1], [-range, range]);
+}
 
-function ParticleBackground() {
+function useMouse3D(intensity: number = 15) {
+  const rotateX = useMotionValue(0);
+  const rotateY = useMotionValue(0);
+  const springX = useSpring(rotateX, { stiffness: 150, damping: 20 });
+  const springY = useSpring(rotateY, { stiffness: 150, damping: 20 });
+
+  const handleMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    const dx = (e.clientX - cx) / (rect.width / 2);
+    const dy = (e.clientY - cy) / (rect.height / 2);
+    rotateY.set(dx * intensity);
+    rotateX.set(-dy * intensity);
+  }, [rotateX, rotateY, intensity]);
+
+  const handleLeave = useCallback(() => {
+    rotateX.set(0);
+    rotateY.set(0);
+  }, [rotateX, rotateY]);
+
+  return { springX, springY, handleMove, handleLeave };
+}
+
+/* ─── Global Background & Texture ───────────────────────────────────── */
+
+function AtmosphericBackground() {
   return (
-    <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      {Array.from({ length: 20 }).map((_, i) => (
-        <div
-          key={i}
-          className="absolute w-1 h-1 rounded-full bg-primary/30 animate-float"
-          style={{
-            left: `${Math.random() * 100}%`,
-            top: `${Math.random() * 100}%`,
-            animationDelay: `${Math.random() * 6}s`,
-            animationDuration: `${6 + Math.random() * 4}s`,
-          }}
-        />
-      ))}
-      <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-primary/5 rounded-full blur-3xl" />
-      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-secondary/5 rounded-full blur-3xl" />
-    </div>
+    <>
+      <div className="fixed inset-0 bg-[#050505] pointer-events-none -z-50" />
+      
+      {/* Subtle violet/blue undertones */}
+      <div className="fixed top-[10%] left-[20%] w-[800px] h-[800px] rounded-full bg-indigo-900/[0.015] blur-[150px] pointer-events-none -z-40" />
+      <div className="fixed bottom-[10%] right-[10%] w-[600px] h-[600px] rounded-full bg-blue-900/[0.012] blur-[120px] pointer-events-none -z-40" />
+      
+      {/* Noise Texture */}
+      <div 
+        className="fixed inset-0 opacity-[0.035] mix-blend-overlay pointer-events-none -z-30" 
+        style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
+        }}
+      />
+      
+      {/* Vignette */}
+      <div className="fixed inset-0 bg-[radial-gradient(circle_at_center,transparent_30%,rgba(5,5,5,0.7)_100%)] pointer-events-none -z-20" />
+    </>
   );
 }
 
-function HeroSection() {
+/* ─── Animated reveal wrapper ───────────────────────────────────────── */
+
+function Reveal({
+  children,
+  delay = 0,
+  className = '',
+  direction = 'up',
+}: {
+  children: React.ReactNode;
+  delay?: number;
+  className?: string;
+  direction?: 'up' | 'left' | 'right';
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const isInView = useInView(ref, { once: true, margin: '-80px' });
+
+  const offsets = {
+    up: { x: 0, y: 30 },
+    left: { x: -40, y: 0 },
+    right: { x: 40, y: 0 },
+  };
+
   return (
-    <section className="relative min-h-[90vh] flex items-center justify-center px-4 py-20">
-      <ParticleBackground />
-      <div className="relative z-10 max-w-4xl mx-auto text-center">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.6 }}
-          className="mb-8"
-        >
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass mb-6">
-            <Shield className="w-4 h-4 text-primary" />
-            <span className="text-sm font-medium text-muted-foreground">End-to-End Encrypted</span>
-          </div>
-          <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6">
-            Messages that{' '}
-            <span className="gradient-text">self-destruct</span>.
-            <br />
-            Privacy that{' '}
-            <span className="text-primary">doesn't</span>.
-          </h1>
-          <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-8">
-            Anonymous. Encrypted. Temporary. CipherLink ensures your conversations stay private with zero metadata and self-destructing messages.
-          </p>
-        </motion.div>
-        
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3, duration: 0.5 }}
-          className="flex flex-col sm:flex-row gap-4 justify-center"
-        >
-          <Link href="/onboarding">
-            <Button size="lg" className="text-lg px-8 glow-primary" data-testid="button-start-messaging">
-              <Zap className="w-5 h-5 mr-2" />
-              Start Messaging Securely
-            </Button>
-          </Link>
-          <a href="#features">
-            <Button size="lg" variant="outline" className="text-lg px-8">
-              Learn More
-            </Button>
-          </a>
-        </motion.div>
-        
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.6, duration: 0.5 }}
-          className="mt-16 flex items-center justify-center gap-8 text-sm text-muted-foreground"
-        >
-          <div className="flex items-center gap-2">
-            <Lock className="w-4 h-4 text-primary" />
-            <span>AES-256 Encryption</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Eye className="w-4 h-4 text-primary" />
-            <span>Zero Metadata</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Clock className="w-4 h-4 text-primary" />
-            <span>Auto-Delete</span>
-          </div>
-        </motion.div>
-      </div>
-    </section>
+    <motion.div
+      ref={ref}
+      initial={{ opacity: 0, ...offsets[direction], filter: 'blur(8px)' }}
+      animate={isInView ? { opacity: 1, x: 0, y: 0, filter: 'blur(0px)' } : {}}
+      transition={{ duration: 0.9, delay, ease: [0.16, 1, 0.3, 1] }}
+      className={className}
+    >
+      {children}
+    </motion.div>
   );
 }
 
-const features = [
-  {
-    icon: Lock,
-    title: 'End-to-End Encryption',
-    description: 'Messages are encrypted with AES-256-GCM before leaving your device. Only you and your recipient can read them.',
-  },
-  {
-    icon: Clock,
-    title: 'Self-Destruct Timers',
-    description: 'Choose when messages disappear: 30 seconds to 24 hours. Once expired, they\'re gone forever.',
-  },
-  {
-    icon: Users,
-    title: 'One-Time Friend Codes',
-    description: 'Connect with friends using single-use 8-character codes. No searching, no discovery, no tracking.',
-  },
-  {
-    icon: Eye,
-    title: 'Anonymous Identity',
-    description: 'No email, no phone number, no password. Your identity is a cryptographic key pair only you control.',
-  },
-  {
-    icon: Shield,
-    title: 'Zero Metadata',
-    description: 'Server logs auto-delete every 24 hours. IP addresses, locations, and activity data are never stored.',
-  },
-  {
-    icon: Smartphone,
-    title: 'Multi-Device Support',
-    description: 'Access your account from any device using your 12-word recovery phrase. Simple and secure.',
-  },
-];
+/* ─── Navigation ────────────────────────────────────────────────────── */
 
-function FeaturesSection() {
+function Nav() {
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 40);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
   return (
-    <section id="features" className="py-24 px-4">
-      <div className="max-w-7xl mx-auto">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="text-center mb-16"
-        >
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">
-            Privacy Without <span className="text-primary">Complexity</span>
-          </h2>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Every feature is designed with one goal: keeping your conversations truly private.
-          </p>
-        </motion.div>
-        
-        <motion.div
-          variants={staggerContainer}
-          initial="initial"
-          whileInView="animate"
-          viewport={{ once: true }}
-          className="grid md:grid-cols-2 lg:grid-cols-3 gap-6"
-        >
-          {features.map((feature, index) => (
-            <motion.div key={feature.title} variants={fadeInUp}>
-              <Card className="h-full hover-elevate group border-border/50 hover:border-primary/30 transition-colors duration-300">
-                <CardContent className="p-6">
-                  <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4 group-hover:glow-primary transition-shadow duration-300">
-                    <feature.icon className="w-6 h-6 text-primary" />
-                  </div>
-                  <h3 className="text-xl font-semibold mb-2">{feature.title}</h3>
-                  <p className="text-muted-foreground">{feature.description}</p>
-                </CardContent>
-              </Card>
-            </motion.div>
-          ))}
-        </motion.div>
-      </div>
-    </section>
-  );
-}
-
-const securityFeatures = [
-  'AES-256-GCM message encryption',
-  'X25519 key exchange protocol',
-  'No emails or phone numbers required',
-  'No usernames stored on server',
-  '24-hour automatic log deletion',
-  'Local-only cryptographic keys',
-  'Zero user discovery or enumeration',
-  'Self-destructing messages',
-  'One-time friend codes',
-  'Open-source encryption libraries',
-];
-
-function SecuritySection() {
-  return (
-    <section id="security" className="py-24 px-4 bg-card/30">
-      <div className="max-w-7xl mx-auto">
-        <div className="grid lg:grid-cols-2 gap-12 items-center">
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-          >
-            <h2 className="text-3xl md:text-4xl font-bold mb-6">
-              Security You Can <span className="text-primary">Trust</span>
-            </h2>
-            <p className="text-lg text-muted-foreground mb-8">
-              CipherLink uses industry-standard encryption protocols. Your messages are encrypted on your device before being sent, and only the intended recipient can decrypt them.
-            </p>
-            
-            <div className="relative p-6 rounded-xl glass">
-              <div className="flex items-center gap-4 mb-4">
-                <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
-                  <KeyRound className="w-5 h-5 text-primary" />
-                </div>
-                <span className="font-medium">Your Message</span>
-              </div>
-              <div className="h-px bg-gradient-to-r from-primary/50 to-transparent my-4" />
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-6 text-sm text-muted-foreground">
-                <div className="flex items-center gap-2">
-                  <span>Encrypted locally</span>
-                  <Lock className="w-4 h-4 text-primary" />
-                </div>
-                <div className="hidden sm:block w-px h-4 bg-border" />
-                <div className="flex items-center gap-2">
-                  <span>Transmitted securely</span>
-                  <Lock className="w-4 h-4 text-primary" />
-                </div>
-                <div className="hidden sm:block w-px h-4 bg-border" />
-                <div className="flex items-center gap-2">
-                  <span>Decrypted by recipient</span>
-                </div>
-              </div>
+    <header
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-700 ${
+        scrolled
+          ? 'py-4 bg-[#050505]/80 backdrop-blur-xl border-b border-white/[0.04]'
+          : 'py-6 bg-transparent'
+      }`}
+    >
+      <div className="max-w-7xl mx-auto flex items-center justify-between px-6 lg:px-12">
+        <Link href="/">
+          <div className="flex items-center gap-3 cursor-pointer group">
+            <div className="w-8 h-8 flex items-center justify-center opacity-80 group-hover:opacity-100 transition-opacity">
+              <Shield className="w-5 h-5 text-zinc-300" />
             </div>
-          </motion.div>
-          
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            className="grid grid-cols-1 sm:grid-cols-2 gap-3"
+            <span className="font-medium text-[15px] tracking-tight text-zinc-100">CipherLink</span>
+          </div>
+        </Link>
+
+        <nav className="hidden md:flex items-center gap-10 text-[13px] text-zinc-500 font-medium">
+          <a href="#product" className="hover:text-zinc-200 transition-colors duration-300">Product</a>
+          <a href="#protocol" className="hover:text-zinc-200 transition-colors duration-300">Protocol</a>
+          <a href="#security" className="hover:text-zinc-200 transition-colors duration-300">Architecture</a>
+        </nav>
+
+        <Link href="/onboarding">
+          <button
+            data-testid="button-header-start"
+            className="text-[13px] font-medium px-5 py-2.5 rounded-full bg-white/[0.03] text-zinc-300 border border-white/[0.06] hover:bg-white/[0.08] hover:text-white transition-all duration-300 cursor-pointer shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
           >
-            {securityFeatures.map((feature, index) => (
-              <div
-                key={feature}
-                className="flex items-center gap-3 p-3 rounded-lg bg-background/50"
+            Launch UI
+          </button>
+        </Link>
+      </div>
+    </header>
+  );
+}
+
+/* ─── Hero ──────────────────────────────────────────────────────────── */
+
+function Hero() {
+  const ref = useRef<HTMLDivElement>(null);
+  const { scrollYProgress } = useScroll({
+    target: ref,
+    offset: ['start start', 'end start'],
+  });
+  const textY = useTransform(scrollYProgress, [0, 1], [0, 80]);
+  const textOpacity = useTransform(scrollYProgress, [0, 0.4], [1, 0]);
+
+  return (
+    <section ref={ref} className="relative min-h-[105vh] flex items-center overflow-hidden pt-20">
+      {/* Artistic radial lighting */}
+      <div className="absolute top-[30%] left-[10%] w-[600px] h-[600px] rounded-full bg-cyan-700/[0.03] blur-[100px] pointer-events-none" />
+      <div className="absolute top-[40%] right-[5%] w-[800px] h-[800px] rounded-full bg-indigo-600/[0.02] blur-[130px] pointer-events-none" />
+
+      <motion.div
+        style={{ y: textY, opacity: textOpacity }}
+        className="w-full max-w-7xl mx-auto px-6 lg:px-12 grid lg:grid-cols-12 gap-12 items-center"
+      >
+        <div className="lg:col-span-7 z-10">
+          <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2, duration: 0.8 }}
+            className="inline-flex items-center gap-2 mb-8"
+          >
+            <div className="w-1.5 h-1.5 rounded-full bg-cyan-500 opacity-80" />
+            <span className="text-xs font-medium text-zinc-500 tracking-wider uppercase">Signal Protocol implementation</span>
+          </motion.div>
+
+          <motion.h1
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.35, duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
+            className="text-[clamp(3.2rem,6vw,5.5rem)] font-bold leading-[1.05] tracking-[-0.04em] text-white mb-8"
+          >
+            Encryption without
+            <br />
+            <span className="text-zinc-500 font-serif italic text-[0.95em]">compromise.</span>
+          </motion.h1>
+
+          <motion.p
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5, duration: 0.8 }}
+            className="text-[17px] leading-relaxed text-zinc-400 max-w-lg mb-12"
+          >
+            A pure technical messaging client. Forward-secure, identity-agnostic, and completely ephemeral. The architecture guarantees privacy before the code even runs.
+          </motion.p>
+
+          <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.65, duration: 0.8 }}
+            className="flex items-center gap-6"
+          >
+            <Link href="/onboarding">
+              <button
+                data-testid="button-start-messaging"
+                className="group flex items-center gap-3 px-7 py-3.5 rounded-full bg-cyan-600/90 text-white font-medium text-[15px] hover:bg-cyan-500 transition-all duration-300 shadow-[0_4px_20px_rgba(8,145,178,0.25)] hover:shadow-[0_4px_30px_rgba(8,145,178,0.4)] cursor-pointer"
               >
-                <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0" />
-                <span className="text-sm">{feature}</span>
-              </div>
-            ))}
+                Create Identity
+                <ArrowRight className="w-4 h-4 opacity-70 group-hover:translate-x-1 group-hover:opacity-100 transition-all" />
+              </button>
+            </Link>
+            
+            <a href="#protocol" className="text-[14px] font-medium text-zinc-500 hover:text-zinc-300 transition-colors">
+              Read Whitepaper →
+            </a>
           </motion.div>
         </div>
-      </div>
+        
+        {/* Abstract Hero Visual (Right Side) */}
+        <div className="hidden lg:block lg:col-span-5 relative h-full min-h-[500px]">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.9, filter: 'blur(20px)' }}
+            animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
+            transition={{ delay: 0.4, duration: 1.2, ease: "easeOut" }}
+            className="absolute inset-0 flex items-center justify-center -mr-20"
+          >
+             <div className="relative w-full aspect-square max-w-[500px]">
+               {/* Orbital rings */}
+               <div className="absolute inset-0 rounded-full border border-white/[0.03] animate-[spin_60s_linear_infinite]" />
+               <div className="absolute inset-[15%] rounded-full border border-indigo-500/[0.05] animate-[spin_40s_linear_infinite_reverse]" />
+               <div className="absolute inset-[30%] rounded-full border border-cyan-500/[0.08]" />
+               
+               {/* Core node */}
+               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 rounded-full bg-gradient-to-br from-zinc-800 to-zinc-950 border border-white/[0.05] flex items-center justify-center shadow-[0_0_80px_rgba(0,0,0,0.8)]">
+                  <Lock className="w-8 h-8 text-zinc-600" />
+               </div>
+               
+               {/* Satellites */}
+               <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-cyan-500/20 backdrop-blur-sm border border-cyan-500/50" />
+               <div className="absolute bottom-1/4 right-[5%] w-3 h-3 rounded-full bg-indigo-500/20 backdrop-blur-sm border border-indigo-500/40" />
+             </div>
+          </motion.div>
+        </div>
+      </motion.div>
     </section>
   );
 }
 
-const steps = [
-  {
-    icon: KeyRound,
-    title: 'Generate Your Identity',
-    description: 'Create a cryptographic key pair that serves as your unique, anonymous identity.',
-  },
-  {
-    icon: Shield,
-    title: 'Save Your Recovery Phrase',
-    description: 'Write down your 12-word phrase. It\'s the only way to recover your identity.',
-  },
-  {
-    icon: Users,
-    title: 'Add Friends with Codes',
-    description: 'Share a one-time 8-character code to connect. No searching, no discovery.',
-  },
-  {
-    icon: MessageSquare,
-    title: 'Chat Securely',
-    description: 'Send encrypted, self-destructing messages. Choose when they disappear.',
-  },
-];
+/* ─── Product Validation (Asymmetric layout) ────────────────────────── */
 
-function HowItWorksSection() {
+function ProductVisualization() {
+  const sectionRef = useRef<HTMLDivElement>(null);
+  const y1 = useParallax(sectionRef, -40);
+  const y2 = useParallax(sectionRef, 40);
+
   return (
-    <section id="how-it-works" className="py-24 px-4">
-      <div className="max-w-5xl mx-auto">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="text-center mb-16"
-        >
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">
-            How It <span className="text-primary">Works</span>
-          </h2>
-          <p className="text-lg text-muted-foreground">
-            Get started in four simple steps
-          </p>
-        </motion.div>
-        
-        <div className="relative">
-          <div className="absolute left-1/2 top-0 bottom-0 w-px bg-gradient-to-b from-primary/50 via-primary/20 to-transparent hidden md:block" />
-          
-          <div className="space-y-12">
-            {steps.map((step, index) => (
-              <motion.div
-                key={step.title}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.1 }}
-                className={`flex items-center gap-8 ${index % 2 === 1 ? 'md:flex-row-reverse' : ''}`}
-              >
-                <div className={`flex-1 ${index % 2 === 1 ? 'md:text-right' : ''}`}>
-                  <Card className="inline-block">
-                    <CardContent className="p-6">
-                      <div className={`flex items-center gap-4 mb-3 ${index % 2 === 1 ? 'md:flex-row-reverse' : ''}`}>
-                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                          <step.icon className="w-5 h-5 text-primary" />
-                        </div>
-                        <span className="text-sm font-medium text-primary">Step {index + 1}</span>
+    <section ref={sectionRef} id="product" className="relative py-32 lg:py-48 z-10 bg-[#0a0a0a]">
+      {/* Subtle organic top transition */}
+      <div className="absolute top-0 inset-x-0 h-32 bg-gradient-to-b from-[#050505] to-transparent pointer-events-none" />
+      
+      <div className="max-w-7xl mx-auto px-6 lg:px-12">
+        <div className="mb-24 md:mb-32">
+          <Reveal>
+            <h2 className="text-[clamp(2rem,5vw,3.5rem)] font-bold tracking-[-0.03em] text-white leading-[1.1] max-w-3xl">
+              We stripped out the social graph.
+              <br />
+              <span className="text-zinc-600">What remains is trust.</span>
+            </h2>
+          </Reveal>
+        </div>
+
+        <div className="grid lg:grid-cols-12 gap-12 lg:gap-20">
+          {/* Left Column (Content) */}
+          <div className="lg:col-span-5 flex flex-col justify-center">
+            <Reveal delay={0.1}>
+              <div className="space-y-12">
+                <div className="relative pl-6 border-l border-zinc-800/60">
+                  <div className="absolute -left-[5px] top-1.5 w-2 h-2 rounded-full bg-zinc-700" />
+                  <h3 className="text-lg font-medium text-zinc-200 mb-3">Ephemeral by default</h3>
+                  <p className="text-[15px] leading-relaxed text-zinc-500">
+                    Set a time-to-live from 30 seconds to 24 hours. The ciphertext is relayed through our servers, delivered, and mathematically erased. No traces are permanently written to disk.
+                  </p>
+                </div>
+                
+                <div className="relative pl-6 border-l border-cyan-900/40">
+                  <div className="absolute -left-[5px] top-1.5 w-2 h-2 rounded-full bg-cyan-600 shadow-[0_0_10px_rgba(8,145,178,0.5)]" />
+                  <h3 className="text-lg font-medium text-zinc-200 mb-3">Cryptographic Identity</h3>
+                  <p className="text-[15px] leading-relaxed text-zinc-500">
+                    Forget usernames and passwords. Your identity is a device-bound Curve25519 key pair. You share an 8-character verification code out-of-band to establish a session, preventing enumeration attacks.
+                  </p>
+                </div>
+              </div>
+            </Reveal>
+          </div>
+
+          {/* Right Column (Visual) */}
+          <div className="lg:col-span-7 relative">
+            <motion.div style={{ y: y1 }} className="absolute -top-12 -right-12 w-64 h-64 bg-indigo-500/[0.03] rounded-full blur-[80px]" />
+            <motion.div style={{ y: y2 }} className="absolute -bottom-12 -left-12 w-80 h-80 bg-cyan-500/[0.03] rounded-full blur-[80px]" />
+            
+            <Reveal delay={0.2} direction="up" className="relative z-10 w-full md:w-4/5 ml-auto">
+              <div className="rounded-2xl bg-zinc-950 border border-white/[0.04] p-1.5 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.8)] overflow-hidden">
+                <div className="rounded-xl border border-white/[0.02] bg-[#0a0a0a] overflow-hidden">
+                  
+                  {/* Fake UI Header */}
+                  <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.02] bg-white/[0.01]">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-zinc-900 border border-white/[0.03] flex items-center justify-center">
+                        <Fingerprint className="w-4 h-4 text-zinc-500" />
                       </div>
-                      <h3 className="text-xl font-semibold mb-2">{step.title}</h3>
-                      <p className="text-muted-foreground">{step.description}</p>
-                    </CardContent>
-                  </Card>
+                      <div>
+                        <div className="h-2.5 w-24 bg-zinc-800 rounded-sm mb-1.5" />
+                        <div className="flex items-center gap-1.5">
+                          <CheckCircle2 className="w-3 h-3 text-cyan-500/80" />
+                          <div className="h-1.5 w-16 bg-zinc-800/50 rounded-sm" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Threat model message interaction */}
+                  <div className="p-6 pb-8 space-y-5">
+                    <div className="flex justify-end">
+                      <div className="max-w-[85%] px-4 py-3 rounded-2xl rounded-tr-sm bg-zinc-900 border border-white/[0.03] text-[14px] text-zinc-400">
+                        Is this exchange forward-secret?
+                      </div>
+                    </div>
+                    
+                    <div className="flex justify-start">
+                      <div className="max-w-[85%] px-4 py-3 rounded-2xl rounded-tl-sm bg-transparent border border-zinc-800 text-[14px] text-zinc-400">
+                        Yes. A new DH-ratchet step just completed. The previous chain key is already purged from memory.
+                      </div>
+                    </div>
+                     
+                    <div className="flex items-center justify-center pt-2">
+                       <div className="inline-flex items-center justify-center rounded-full px-3 py-1 bg-white/[0.02] border border-white/[0.03]">
+                         <Timer className="w-3 h-3 text-zinc-600 mr-2" />
+                         <span className="text-[11px] font-medium text-zinc-500">Self-destruct programmed: 2 minutes</span>
+                       </div>
+                    </div>
+                  </div>
+                  
                 </div>
-                
-                <div className="hidden md:flex w-12 h-12 rounded-full bg-primary text-primary-foreground items-center justify-center font-bold text-lg z-10">
-                  {index + 1}
-                </div>
-                
-                <div className="flex-1 hidden md:block" />
-              </motion.div>
-            ))}
+              </div>
+            </Reveal>
           </div>
         </div>
       </div>
@@ -347,123 +353,224 @@ function HowItWorksSection() {
   );
 }
 
-function MissionSection() {
+/* ─── Deconstructed Protocol ────────────────────────────────────────── */
+
+const protocols = [
+  {
+    num: '01',
+    title: 'Curve25519 Local Generation',
+    desc: 'Keys are minted client-side in IndexedDB. Private material remains physically sandboxed on the device chipset.',
+  },
+  {
+    num: '02',
+    title: 'X3DH Handshake',
+    desc: 'Asymmetric identity keys combined with ephemeral prekeys authenticate users asynchronously over untrusted networks.',
+  },
+  {
+    num: '03',
+    title: 'Signal Double Ratchet',
+    desc: 'A KDF chain perpetually derives new message keys. Old keys are useless to attackers even if a device is later compromised.',
+  },
+  {
+    num: '04',
+    title: 'Zero-Knowledge Relays',
+    desc: 'Encrypted payloads act as opaque blobs to our infrastructure. We route bytes; we cannot read text.',
+  },
+];
+
+function ProtocolSection() {
+  const sectionRef = useRef<HTMLDivElement>(null);
+
   return (
-    <section className="py-24 px-4 bg-card/30">
-      <div className="max-w-4xl mx-auto text-center">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          whileInView={{ opacity: 1, scale: 1 }}
-          viewport={{ once: true }}
-        >
-          <h2 className="text-3xl md:text-4xl font-bold mb-8">
-            Our <span className="text-primary">Mission</span>
-          </h2>
-          <blockquote className="text-xl md:text-2xl lg:text-3xl font-medium leading-relaxed text-muted-foreground mb-8">
-            "To redefine private communication with a system that{' '}
-            <span className="text-foreground">collects nothing</span>,{' '}
-            <span className="text-foreground">stores nothing permanently</span>, and{' '}
-            <span className="text-foreground">exposes nothing</span>."
-          </blockquote>
-          <p className="text-muted-foreground">
-            Privacy is not a feature. It's a fundamental right.
-          </p>
-        </motion.div>
+    <section ref={sectionRef} id="protocol" className="relative py-32 lg:py-48 z-10">
+      <div className="absolute top-0 inset-x-0 h-32 bg-gradient-to-b from-[#0a0a0a] to-transparent pointer-events-none" />
+      
+      <div className="max-w-7xl mx-auto px-6 lg:px-12">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-20 lg:mb-32">
+          <Reveal>
+            <h2 className="text-[clamp(2rem,4vw,3rem)] font-bold tracking-[-0.03em] text-white leading-tight">
+              Cryptographic
+              <br />
+              Primitives.
+            </h2>
+          </Reveal>
+          <Reveal delay={0.1}>
+            <p className="text-[15px] text-zinc-500 max-w-sm">
+              We rely on established cryptographic standards, not proprietary algorithms. 
+              Open primitives. Verifiable security.
+            </p>
+          </Reveal>
+        </div>
+
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-16">
+          {protocols.map((protocol, i) => (
+            <Reveal key={protocol.num} delay={i * 0.1} direction="up">
+              <div className="group relative">
+                <div className="text-zinc-800 font-mono text-[10px] tracking-widest mb-4">
+                  {protocol.num} //
+                </div>
+                <div className="h-px w-full bg-zinc-900 mb-6 group-hover:bg-cyan-900/50 transition-colors duration-500" />
+                <h3 className="text-[16px] font-medium text-zinc-200 mb-3">{protocol.title}</h3>
+                <p className="text-[14px] leading-relaxed text-zinc-500">{protocol.desc}</p>
+              </div>
+            </Reveal>
+          ))}
+        </div>
       </div>
     </section>
   );
 }
 
-function CTASection() {
+/* ─── Architecture (Deep Dive) ──────────────────────────────────────── */
+
+function ArchitectureSection() {
+  const sectionRef = useRef<HTMLDivElement>(null);
+  
   return (
-    <section className="py-24 px-4">
-      <div className="max-w-3xl mx-auto text-center">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-        >
-          <h2 className="text-3xl md:text-4xl font-bold mb-6">
-            Ready for <span className="text-primary">True Privacy</span>?
-          </h2>
-          <p className="text-lg text-muted-foreground mb-8">
-            No email. No phone number. No compromises.
-          </p>
-          <Link href="/onboarding">
-            <Button size="lg" className="text-lg px-10 glow-primary" data-testid="button-get-started">
-              <Zap className="w-5 h-5 mr-2" />
-              Get Started Now
-            </Button>
-          </Link>
-        </motion.div>
+    <section ref={sectionRef} id="security" className="relative py-32 lg:py-48 bg-[#0a0a0a] overflow-hidden">
+      {/* Background elements */}
+      <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-[1px] bg-gradient-to-b from-transparent via-zinc-800/30 to-transparent" />
+      <div className="absolute top-[20%] right-[-10%] w-[500px] h-[500px] bg-indigo-900/[0.02] rounded-full blur-[100px]" />
+
+      <div className="max-w-7xl mx-auto px-6 lg:px-12 relative z-10">
+        <Reveal>
+          <div className="text-center mb-24 lg:mb-32">
+            <h2 className="text-[clamp(1.8rem,3vw,2.5rem)] font-bold tracking-[-0.02em] text-white">
+              Data minimization isn't a policy.
+              <br />
+              <span className="text-zinc-600 font-normal">It's hardcoded constraint.</span>
+            </h2>
+          </div>
+        </Reveal>
+
+        <div className="grid md:grid-cols-2 gap-16 lg:gap-32">
+          <Reveal delay={0.1} direction="right">
+            <div>
+              <div className="w-12 h-12 rounded-xl bg-zinc-900/50 border border-zinc-800 flex items-center justify-center mb-6">
+                <Server className="w-5 h-5 text-zinc-400" />
+              </div>
+              <h3 className="text-[20px] font-medium text-zinc-100 mb-4">Infrastructure Ignorance</h3>
+              <p className="text-[15px] leading-relaxed text-zinc-500 mb-6">
+                Most platforms perform encryption in transit, terminating TLS at the load balancer to index metadata. CipherLink servers hold no termination keys. They blindly pass encrypted payloads from client A to client B.
+              </p>
+              <ul className="space-y-3">
+                {[
+                  'Volatile RAM storage for pending messages',
+                  'Zero permanent SQL chat history',
+                  'Rolling 24-hour log rotation',
+                ].map((item, i) => (
+                  <li key={i} className="flex items-start gap-3 text-[14px] text-zinc-400">
+                    <span className="text-zinc-700 mt-0.5">—</span> {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </Reveal>
+
+          <Reveal delay={0.2} direction="left">
+            <div>
+              <div className="w-12 h-12 rounded-xl bg-cyan-950/20 border border-cyan-900/30 flex items-center justify-center mb-6">
+                <Shield className="w-5 h-5 text-cyan-500/70" />
+              </div>
+              <h3 className="text-[20px] font-medium text-zinc-100 mb-4">Cryptographic Identity</h3>
+              <p className="text-[15px] leading-relaxed text-zinc-500 mb-6">
+                When you sign up, you don't provide an email. You generate a high-entropy seed phrase. This phrase derives your root identity key. Lose the device and the phrase, and the account is mathematically unrecoverable.
+              </p>
+              <ul className="space-y-3">
+                {[
+                  'No email addresses linked',
+                  'No phone number harvesting',
+                  'BIP39 standard recovery phrases',
+                ].map((item, i) => (
+                  <li key={i} className="flex items-start gap-3 text-[14px] text-zinc-400">
+                    <span className="text-zinc-700 mt-0.5">—</span> {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </Reveal>
+        </div>
       </div>
     </section>
   );
 }
+
+/* ─── CTA ────────────────────────────────────────────────────────────── */
+
+function CTA() {
+  const sectionRef = useRef<HTMLDivElement>(null);
+
+  return (
+    <section ref={sectionRef} className="relative py-32 lg:py-48 flex items-center justify-center">
+      <div className="relative z-10 max-w-2xl mx-auto px-6 text-center">
+        <Reveal>
+          <div className="w-16 h-16 mx-auto bg-zinc-900 border border-zinc-800 rounded-full flex items-center justify-center mb-8 shadow-xl">
+            <Lock className="w-6 h-6 text-zinc-400" />
+          </div>
+        </Reveal>
+        
+        <Reveal delay={0.1}>
+          <h2 className="text-[clamp(2.5rem,5vw,3.5rem)] font-bold tracking-[-0.04em] text-white leading-[1.05] mb-8">
+            Reclaim your privacy.
+          </h2>
+        </Reveal>
+        
+        <Reveal delay={0.2}>
+          <Link href="/onboarding">
+            <button
+              data-testid="button-get-started"
+              className="inline-flex items-center justify-center px-8 py-4 rounded-full bg-white text-black font-semibold text-[15px] hover:scale-[1.02] transition-transform duration-300 shadow-[0_0_40px_rgba(255,255,255,0.15)] cursor-pointer"
+            >
+              Initialize Client Instance
+            </button>
+          </Link>
+          <p className="mt-6 text-[13px] text-zinc-600 font-medium">Free. Open Protocol. No strings attached.</p>
+        </Reveal>
+      </div>
+    </section>
+  );
+}
+
+/* ─── Footer ─────────────────────────────────────────────────────────── */
 
 function Footer() {
   return (
-    <footer className="py-12 px-4 border-t border-border/50">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
-              <Shield className="w-5 h-5 text-primary" />
-            </div>
-            <span className="font-bold text-lg">CipherLink</span>
-          </div>
-          
-          <nav className="flex items-center gap-6 text-sm text-muted-foreground">
-            <a href="#features" className="hover:text-foreground transition-colors">Features</a>
-            <a href="#security" className="hover:text-foreground transition-colors">Security</a>
-            <a href="#how-it-works" className="hover:text-foreground transition-colors">How It Works</a>
-          </nav>
-          
-          <p className="text-sm text-muted-foreground">
-            Your messages are encrypted with AES-256
-          </p>
+    <footer className="py-12 px-6 lg:px-12 border-t border-white/[0.03] bg-[#050505] relative z-10">
+      <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
+        <div className="flex items-center gap-3 opacity-60 hover:opacity-100 transition-opacity">
+          <Shield className="w-4 h-4 text-zinc-400" />
+          <span className="text-[13px] font-medium text-zinc-400">CipherLink</span>
         </div>
+
+        <nav className="flex items-center gap-8 text-[12px] text-zinc-600 font-medium">
+          <a href="#product" className="hover:text-zinc-300 transition-colors">Product</a>
+          <a href="#protocol" className="hover:text-zinc-300 transition-colors">Protocol</a>
+          <a href="#security" className="hover:text-zinc-300 transition-colors">Security</a>
+          <a href="#" className="hover:text-zinc-300 transition-colors">Source Code</a>
+        </nav>
+
+        <p className="text-[11px] text-zinc-700 font-mono">
+          E2EE Active // v1.0.0
+        </p>
       </div>
     </footer>
   );
 }
 
+/* ─── Page ───────────────────────────────────────────────────────────── */
+
 export function LandingPage() {
   return (
-    <div className="min-h-screen bg-background">
-      <header className="fixed top-0 left-0 right-0 z-50 py-4 px-4 glass">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
-              <Shield className="w-5 h-5 text-primary" />
-            </div>
-            <span className="font-bold text-lg">CipherLink</span>
-          </div>
-          
-          <nav className="hidden md:flex items-center gap-6 text-sm">
-            <a href="#features" className="text-muted-foreground hover:text-foreground transition-colors">Features</a>
-            <a href="#security" className="text-muted-foreground hover:text-foreground transition-colors">Security</a>
-            <a href="#how-it-works" className="text-muted-foreground hover:text-foreground transition-colors">How It Works</a>
-          </nav>
-          
-          <Link href="/onboarding">
-            <Button data-testid="button-header-start">
-              <Lock className="w-4 h-4 mr-2" />
-              Get Started
-            </Button>
-          </Link>
-        </div>
-      </header>
-      
-      <main className="pt-16">
-        <HeroSection />
-        <FeaturesSection />
-        <SecuritySection />
-        <HowItWorksSection />
-        <MissionSection />
-        <CTASection />
+    <div className="min-h-screen bg-[#050505] text-zinc-300 selection:bg-cyan-900/30 selection:text-cyan-100 overflow-x-hidden font-sans">
+      <AtmosphericBackground />
+      <Nav />
+      <main className="relative z-10">
+        <Hero />
+        <ProductVisualization />
+        <ProtocolSection />
+        <ArchitectureSection />
+        <CTA />
       </main>
-      
       <Footer />
     </div>
   );

@@ -1,6 +1,36 @@
-node_modules
-dist
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Environment files (NEVER commit these)
+.env
+.env.local
+.env.*.local
+
+# OS / Editor
 .DS_Store
-server/public
-vite.config.ts.*
+.vscode/
+.local/
 *.tar.gz
+
+# Test & debug artifacts
+postman/
+scripts/
+server/__tests__/
+server/docs/
+check-*.ts
+test-*.ts
+test-*.mjs
+test_*.txt
+verify_tests.*
+newman_results.json
+scratch_*
+
+# Logs
+*.log
+npm-debug.log*
+
+# Vite
+vite.config.ts.*
