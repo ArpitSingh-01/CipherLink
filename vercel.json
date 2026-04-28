@@ -23,12 +23,6 @@
       "destination": "/index.html"
     }
   ],
-  "crons": [
-    {
-      "path": "/api/internal/cleanup",
-      "schedule": "*/5 * * * *"
-    }
-  ],
   "env": {
     "NODE_ENV": "production"
   },
