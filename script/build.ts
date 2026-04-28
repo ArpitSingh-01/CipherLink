@@ -11,7 +11,9 @@ const allowlist = [
   "drizzle-zod",
   "express",
   "express-rate-limit",
+  "helmet",
   "nanoid",
+  "postgres",
   "ws",
   "zod",
   "zod-validation-error",
@@ -23,7 +25,7 @@ async function buildAll() {
   console.log("building client...");
   await viteBuild();
 
-  console.log("building server...");
+  console.log("building server (dev entry)...");
   const pkg = JSON.parse(await readFile("package.json", "utf-8"));
   const allDeps = [
     ...Object.keys(pkg.dependencies || {}),
@@ -40,8 +42,36 @@ async function buildAll() {
     define: {
       "process.env.NODE_ENV": '"production"',
     },
+    alias: {
+      "@shared": "./shared",
+      "@": "./client/src",
+    },
     minify: true,
     external: externals,
+    logLevel: "info",
+  });
+
+  // Build the Vercel serverless API function
+  // Key: bundle application code + resolve @shared/* aliases,
+  // but keep node_modules as externals (Vercel provides them at runtime)
+  console.log("building Vercel API function...");
+  await esbuild({
+    entryPoints: ["api/index.ts"],
+    platform: "node",
+    bundle: true,
+    format: "esm",
+    outfile: "api/index.mjs",
+    alias: {
+      "@shared": "./shared",
+      "@": "./client/src",
+    },
+    banner: {
+      js: 'import { createRequire } from "module"; const require = createRequire(import.meta.url);',
+    },
+    // Externalize all node_modules — Vercel has them at runtime
+    // This avoids trying to bundle native modules like lightningcss
+    external: allDeps,
+    minify: true,
     logLevel: "info",
   });
 }
