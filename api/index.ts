@@ -13,35 +13,31 @@ const app = express();
 // SEC-08: Enable trust proxy for Vercel
 app.set('trust proxy', 1);
 
-// CORS configuration
+// CORS configuration — wide-open in Vercel to avoid mismatch issues
 const corsOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(',').map(s => s.trim())
   : ['http://localhost:5000'];
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || corsOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(null, false);
+    // Allow requests with no origin (mobile apps, curl, etc.)
+    if (!origin) return callback(null, true);
+    // In production, check against allowed list
+    if (corsOrigins.some(allowed => origin.startsWith(allowed) || allowed === '*')) {
+      return callback(null, true);
     }
+    // Also allow any *.vercel.app origin for preview deployments
+    if (origin.endsWith('.vercel.app')) {
+      return callback(null, true);
+    }
+    callback(null, false);
   },
   credentials: true,
 }));
 
-// Security headers
+// Security headers (relaxed CSP for Vercel)
 app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      scriptSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-      connectSrc: ["'self'", "https://*.vercel.app"],
-      imgSrc: ["'self'", "data:"],
-      fontSrc: ["'self'", "https://fonts.gstatic.com"],
-    },
-  },
-  hsts: { maxAge: 31536000, includeSubDomains: true, preload: true },
+  contentSecurityPolicy: false,
   crossOriginEmbedderPolicy: false,
 }));
 
@@ -64,7 +60,6 @@ app.use(express.urlencoded({ extended: false, limit: '256kb' }));
 // Register all API routes
 const httpServer = createServer(app);
 
-// Async initialization wrapper
 let initialized = false;
 const initPromise = (async () => {
   await registerRoutes(httpServer, app);
@@ -79,8 +74,8 @@ const initPromise = (async () => {
   initialized = true;
 })();
 
-// Export for Vercel serverless
-export default async (req: any, res: any) => {
+// Export the Express app directly for Vercel
+export default async function handler(req: any, res: any) {
   if (!initialized) await initPromise;
-  app(req, res);
-};
+  return app(req, res);
+}
