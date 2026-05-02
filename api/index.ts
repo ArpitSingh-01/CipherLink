@@ -54,7 +54,12 @@ app.use(perIPLimiter);
 
 // Body parsing with size limit
 app.use(requestSizeLimit);
-app.use(express.json({ limit: '256kb' }));
+app.use(express.json({
+  limit: '256kb',
+  verify: (req: any, _res: any, buf: Buffer) => {
+    req.rawBody = buf;
+  },
+}));
 app.use(express.urlencoded({ extended: false, limit: '256kb' }));
 
 // Register all API routes
