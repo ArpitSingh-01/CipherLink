@@ -52,8 +52,7 @@ const globalLimiter = rateLimit({
 app.use(globalLimiter);
 app.use(perIPLimiter);
 
-// Body parsing with size limit
-app.use(requestSizeLimit);
+app.use('/api/messages', requestSizeLimit(150 * 1024)); // 150KB for message endpoint only
 app.use(express.json({
   limit: '256kb',
   verify: (req: any, _res: any, buf: Buffer) => {
