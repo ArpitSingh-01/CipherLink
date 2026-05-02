@@ -56,7 +56,7 @@ async function buildAll() {
   // but keep node_modules as externals (Vercel provides them at runtime)
   console.log("building Vercel API function...");
   await esbuild({
-    entryPoints: ["api/index.ts"],
+    entryPoints: ["server/vercel-entry.ts"],
     platform: "node",
     bundle: true,
     format: "cjs",

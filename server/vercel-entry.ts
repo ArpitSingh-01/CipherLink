@@ -3,9 +3,9 @@ import express, { type Request, Response, NextFunction } from "express";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import cors from "cors";
-import { registerRoutes } from "../server/routes";
-import { requestSizeLimit } from "../server/middleware/sizeLimit";
-import { perIPLimiter } from "../server/middleware/rateLimitPerIP";
+import { registerRoutes } from "./routes";
+import { requestSizeLimit } from "./middleware/sizeLimit";
+import { perIPLimiter } from "./middleware/rateLimitPerIP";
 import { createServer } from "http";
 
 const app = express();
