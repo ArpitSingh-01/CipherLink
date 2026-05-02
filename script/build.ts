@@ -52,9 +52,20 @@ async function buildAll() {
   });
 
   // Build the Vercel serverless API function
-  // Key: bundle application code + resolve @shared/* aliases,
-  // but keep node_modules as externals (Vercel provides them at runtime)
+  // Bundle application code + ESM-only deps + common deps
+  // Only externalize deps that are CJS-compatible and available in node_modules at runtime
   console.log("building Vercel API function...");
+
+  // Deps that MUST be bundled (ESM-only or needed inline)
+  const vercelBundled = [
+    ...allowlist,
+    "@noble/curves",
+    "@scure/bip39",
+    "@scure/base",
+    "@noble/hashes",
+  ];
+  const vercelExternals = allDeps.filter((dep) => !vercelBundled.includes(dep));
+
   await esbuild({
     entryPoints: ["server/vercel-entry.ts"],
     platform: "node",
@@ -65,9 +76,7 @@ async function buildAll() {
       "@shared": "./shared",
       "@": "./client/src",
     },
-    // Externalize all node_modules — Vercel has them at runtime
-    // This avoids trying to bundle native modules like lightningcss
-    external: allDeps,
+    external: vercelExternals,
     minify: true,
     logLevel: "info",
   });
