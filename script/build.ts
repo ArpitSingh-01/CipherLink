@@ -59,9 +59,8 @@ async function buildAll() {
     entryPoints: ["server/vercel-entry.ts"],
     platform: "node",
     bundle: true,
-    format: "esm",
+    format: "cjs",
     outfile: "api/index.js",
-    banner: { js: "import { createRequire } from 'module'; const require = createRequire(import.meta.url);" },
     alias: {
       "@shared": "./shared",
       "@": "./client/src",
