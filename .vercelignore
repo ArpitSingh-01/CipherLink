@@ -1,0 +1,44 @@
+# Ignore files that don't affect the build
+# to reduce upload size and speed up deployments
+
+# Test & debug artifacts
+postman/
+scripts/
+server/__tests__/
+server/docs/
+*.test.ts
+*.spec.ts
+test-*.ts
+test-*.mjs
+test_*.txt
+check-*.ts
+verify_tests.*
+newman_results.json
+scratch_*
+
+# Editor & OS
+.vscode/
+.DS_Store
+.local/
+
+# Documentation
+*.md
+!README.md
+
+# Git
+.git/
+.gitignore
+
+# Environment files
+.env
+.env.local
+.env.*.local
+.env.example
+.env.vercel.example
+
+# Logs
+*.log
+npm-debug.log*
+
+# Build artifacts (will be regenerated)
+dist/
