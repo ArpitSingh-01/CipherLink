@@ -53,12 +53,38 @@ app.use(globalLimiter);
 app.use(perIPLimiter);
 
 app.use('/api/messages', requestSizeLimit(150 * 1024)); // 150KB for message endpoint only
-app.use(express.json({
-  limit: '256kb',
-  verify: (req: any, _res: any, buf: Buffer) => {
-    req.rawBody = buf;
-  },
-}));
+
+// VERCEL FIX: Vercel's runtime pre-parses the request body and consumes the
+// readable stream BEFORE Express can read it. This means express.json()'s
+// `verify` callback never fires → req.rawBody is never set → the auth
+// middleware computes SHA256('') instead of SHA256(actual_body) → every
+// authenticated request fails with "Invalid signature".
+//
+// Solution: Insert middleware that reconstructs rawBody from Vercel's
+// pre-parsed req.body, then use express.json() only as a fallback for
+// cases where the body wasn't pre-parsed (e.g. local dev via this entry).
+app.use((req: any, _res: any, next: any) => {
+  // Vercel pre-parsed the body — reconstruct rawBody and parsed body
+  if (req.body && typeof req.body === 'object' && !req.rawBody) {
+    const bodyStr = JSON.stringify(req.body);
+    req.rawBody = Buffer.from(bodyStr, 'utf-8');
+    // Body is already parsed by Vercel — skip express.json()
+    next();
+  } else if (typeof req.body === 'string' && !req.rawBody) {
+    // Vercel sometimes provides body as string
+    req.rawBody = Buffer.from(req.body, 'utf-8');
+    try { req.body = JSON.parse(req.body); } catch { /* leave as-is */ }
+    next();
+  } else {
+    // Body not pre-parsed (fallback) — let express.json() handle it
+    express.json({
+      limit: '256kb',
+      verify: (req: any, _res: any, buf: Buffer) => {
+        req.rawBody = buf;
+      },
+    })(req, _res, next);
+  }
+});
 app.use(express.urlencoded({ extended: false, limit: '256kb' }));
 
 // Register all API routes
