@@ -105,6 +105,19 @@ export const config = {
 // Export handler for Vercel
 export default async function handler(req: any, res: any) {
   if (!initialized) await initPromise;
+
+  // Vercel's rewrite rule "/api/:path*" → "/api" captures the sub-path and
+  // appends it as a `?path=` query parameter (e.g. "/api/users?path=users").
+  // This extra parameter ends up in req.originalUrl, which the auth middleware
+  // uses to compute the signed message. Since the client signs the URL without
+  // this Vercel-injected parameter, the signatures never match.
+  // Fix: strip the `path` parameter from the URL before Express processes it.
+  if (req.url) {
+    const url = new URL(req.url, 'http://localhost');
+    url.searchParams.delete('path');
+    req.url = url.pathname + (url.searchParams.toString() ? '?' + url.searchParams.toString() : '');
+  }
+
   return app(req, res);
 }
 
