@@ -54,9 +54,8 @@ app.use(perIPLimiter);
 app.use('/api/messages', requestSizeLimit(150 * 1024));
 
 // Body parsing with rawBody capture for auth signature verification.
-// Vercel's built-in body parser is disabled via the `config` export below,
-// so the request stream is intact and express.json() reads it normally.
-// The `verify` callback captures the exact raw bytes for signature hashing.
+// Primary path: express.json()'s verify callback captures raw bytes from the stream.
+// This works when the stream is intact (local dev, or if Vercel respects bodyParser:false).
 app.use(express.json({
   limit: '256kb',
   verify: (req: any, _res: any, buf: Buffer) => {
@@ -64,6 +63,17 @@ app.use(express.json({
   },
 }));
 app.use(express.urlencoded({ extended: false, limit: '256kb' }));
+
+// Fallback path: If Vercel's runtime consumed the stream before Express could read it,
+// the verify callback never fires and rawBody is undefined. In that case, reconstruct
+// rawBody from the parsed body. JSON.stringify(JSON.parse(x)) === x for objects
+// serialized with default JSON.stringify (no whitespace, no custom toJSON).
+app.use((req: any, _res: any, next: any) => {
+  if (!req.rawBody && req.body && typeof req.body === 'object' && Object.keys(req.body).length > 0) {
+    req.rawBody = Buffer.from(JSON.stringify(req.body), 'utf-8');
+  }
+  next();
+});
 
 // Register all API routes
 const httpServer = createServer(app);
