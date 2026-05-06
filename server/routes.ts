@@ -117,6 +117,39 @@ export async function registerRoutes(
     res.json({ status: 'ok' });
   });
 
+  // ==================== TEMPORARY DEBUG: Auth Echo ====================
+  // Shows exactly what the server computes for signature verification.
+  // REMOVE THIS ENDPOINT once the auth issue is resolved.
+  app.post('/api/debug/auth-echo', (req: any, res) => {
+    const { createHash } = require('crypto');
+    const rawBody = req.rawBody;
+    const bodyStr = Buffer.isBuffer(rawBody) ? rawBody.toString('utf-8') : '';
+    const bodyHash = createHash('sha256').update(bodyStr).digest('hex');
+    const timestamp = req.headers['x-timestamp'] || '';
+    const requestNonce = req.headers['x-request-nonce'] || '';
+    const message = `${req.method}\n${req.originalUrl}\n${bodyHash}\n${timestamp}\n${requestNonce}`;
+
+    res.json({
+      server_view: {
+        method: req.method,
+        originalUrl: req.originalUrl,
+        url: req.url,
+        path: req.path,
+        baseUrl: req.baseUrl,
+        rawBodyExists: Buffer.isBuffer(rawBody),
+        rawBodyLength: Buffer.isBuffer(rawBody) ? rawBody.length : 0,
+        rawBodyHex: Buffer.isBuffer(rawBody) ? rawBody.toString('hex').slice(0, 200) : 'NO_RAW_BODY',
+        rawBodyUtf8: bodyStr.slice(0, 200),
+        bodyType: typeof req.body,
+        bodyKeys: req.body ? Object.keys(req.body) : [],
+        bodyHash,
+        timestamp,
+        requestNonce: requestNonce ? requestNonce.slice(0, 16) + '...' : '',
+        signedMessage: message,
+      }
+    });
+  });
+
   // ==================== USERS ====================
 
   // Register a new user (just their public key)
