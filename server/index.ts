@@ -107,7 +107,8 @@ app.use(
 
 app.use(express.urlencoded({ extended: false, limit: '1mb' }));
 
-export { log } from './log';
+import { log } from './log';
+export { log };
 
 app.use((req, res, next) => {
   const start = Date.now();
