@@ -97,6 +97,8 @@ export const config = {
   api: {
     bodyParser: false,
   },
+  memory: 256,
+  maxDuration: 10,
 };
 
 // Export handler for Vercel
