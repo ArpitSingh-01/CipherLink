@@ -13,26 +13,25 @@ const app = express();
 // SEC-08: Enable trust proxy for Vercel
 app.set('trust proxy', 1);
 
-// CORS configuration — wide-open in Vercel to avoid mismatch issues
+// CORS configuration
 const corsOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(',').map(s => s.trim())
   : ['http://localhost:5000'];
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (mobile apps, curl, etc.)
     if (!origin) return callback(null, true);
-    // In production, check against allowed list
     if (corsOrigins.some(allowed => origin.startsWith(allowed) || allowed === '*')) {
       return callback(null, true);
     }
-    // Also allow any *.vercel.app origin for preview deployments
     if (origin.endsWith('.vercel.app')) {
       return callback(null, true);
     }
     callback(null, false);
   },
   credentials: true,
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Public-Key', 'X-Timestamp', 'X-Signature', 'X-Device-Key', 'X-Request-Nonce'],
 }));
 
 // Security headers (relaxed CSP for Vercel)
@@ -52,39 +51,17 @@ const globalLimiter = rateLimit({
 app.use(globalLimiter);
 app.use(perIPLimiter);
 
-app.use('/api/messages', requestSizeLimit(150 * 1024)); // 150KB for message endpoint only
+app.use('/api/messages', requestSizeLimit(150 * 1024));
 
-// VERCEL FIX: Vercel's runtime pre-parses the request body and consumes the
-// readable stream BEFORE Express can read it. This means express.json()'s
-// `verify` callback never fires → req.rawBody is never set → the auth
-// middleware computes SHA256('') instead of SHA256(actual_body) → every
-// authenticated request fails with "Invalid signature".
-//
-// Solution: Insert middleware that reconstructs rawBody from Vercel's
-// pre-parsed req.body, then use express.json() only as a fallback for
-// cases where the body wasn't pre-parsed (e.g. local dev via this entry).
-app.use((req: any, _res: any, next: any) => {
-  // Vercel pre-parsed the body — reconstruct rawBody and parsed body
-  if (req.body && typeof req.body === 'object' && !req.rawBody) {
-    const bodyStr = JSON.stringify(req.body);
-    req.rawBody = Buffer.from(bodyStr, 'utf-8');
-    // Body is already parsed by Vercel — skip express.json()
-    next();
-  } else if (typeof req.body === 'string' && !req.rawBody) {
-    // Vercel sometimes provides body as string
-    req.rawBody = Buffer.from(req.body, 'utf-8');
-    try { req.body = JSON.parse(req.body); } catch { /* leave as-is */ }
-    next();
-  } else {
-    // Body not pre-parsed (fallback) — let express.json() handle it
-    express.json({
-      limit: '256kb',
-      verify: (req: any, _res: any, buf: Buffer) => {
-        req.rawBody = buf;
-      },
-    })(req, _res, next);
-  }
-});
+// Body parsing — express.json() with rawBody capture.
+// On Vercel, req._body is set to true in the handler below so this is skipped.
+// On local dev (if this entry is used), express.json() runs normally.
+app.use(express.json({
+  limit: '256kb',
+  verify: (req: any, _res: any, buf: Buffer) => {
+    req.rawBody = buf;
+  },
+}));
 app.use(express.urlencoded({ extended: false, limit: '256kb' }));
 
 // Register all API routes
@@ -104,8 +81,27 @@ const initPromise = (async () => {
   initialized = true;
 })();
 
-// Export the Express app directly for Vercel
+// Export for Vercel
 export default async function handler(req: any, res: any) {
   if (!initialized) await initPromise;
+
+  // VERCEL BODY FIX: Vercel's runtime pre-parses the request body and
+  // consumes the readable stream. express.json()'s verify callback never
+  // fires, so req.rawBody is never set. The auth middleware then computes
+  // SHA256('') instead of SHA256(actual_body) → signature mismatch → 401.
+  //
+  // Fix: Reconstruct rawBody from Vercel's pre-parsed req.body, then set
+  // req._body = true so express.json() skips re-parsing the consumed stream.
+  if (req.body !== undefined && req.body !== null) {
+    const str = typeof req.body === 'object'
+      ? JSON.stringify(req.body)
+      : String(req.body);
+    req.rawBody = Buffer.from(str, 'utf-8');
+    if (typeof req.body === 'string') {
+      try { req.body = JSON.parse(req.body); } catch { /* not JSON */ }
+    }
+    req._body = true; // skip express.json()
+  }
+
   return app(req, res);
 }
