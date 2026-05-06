@@ -6,7 +6,7 @@ import { z } from "zod";
 import { requireAuth, requireAuthBootstrap } from "./middleware/auth";
 import { logSecurityEvent } from "./logger/security";
 import { cleanupExpiredData } from "./cleanup";
-import { notifyNewMessage, notifyFriendEvent } from "./ws";
+import { notifyNewMessage, notifyFriendEvent } from "./broadcast";
 import { db } from "./db";
 import { messages, authNonces } from "@shared/schema";
 import { lt } from "drizzle-orm";
@@ -117,38 +117,7 @@ export async function registerRoutes(
     res.json({ status: 'ok' });
   });
 
-  // ==================== TEMPORARY DEBUG: Auth Echo ====================
-  // Shows exactly what the server computes for signature verification.
-  // REMOVE THIS ENDPOINT once the auth issue is resolved.
-  app.post('/api/debug/auth-echo', (req: any, res) => {
-    const { createHash } = require('crypto');
-    const rawBody = req.rawBody;
-    const bodyStr = Buffer.isBuffer(rawBody) ? rawBody.toString('utf-8') : '';
-    const bodyHash = createHash('sha256').update(bodyStr).digest('hex');
-    const timestamp = req.headers['x-timestamp'] || '';
-    const requestNonce = req.headers['x-request-nonce'] || '';
-    const message = `${req.method}\n${req.originalUrl}\n${bodyHash}\n${timestamp}\n${requestNonce}`;
-
-    res.json({
-      server_view: {
-        method: req.method,
-        originalUrl: req.originalUrl,
-        url: req.url,
-        path: req.path,
-        baseUrl: req.baseUrl,
-        rawBodyExists: Buffer.isBuffer(rawBody),
-        rawBodyLength: Buffer.isBuffer(rawBody) ? rawBody.length : 0,
-        rawBodyHex: Buffer.isBuffer(rawBody) ? rawBody.toString('hex').slice(0, 200) : 'NO_RAW_BODY',
-        rawBodyUtf8: bodyStr.slice(0, 200),
-        bodyType: typeof req.body,
-        bodyKeys: req.body ? Object.keys(req.body) : [],
-        bodyHash,
-        timestamp,
-        requestNonce: requestNonce ? requestNonce.slice(0, 16) + '...' : '',
-        signedMessage: message,
-      }
-    });
-  });
+  // (Debug auth-echo endpoint removed — auth issue resolved)
 
   // ==================== USERS ====================
 
@@ -843,6 +812,9 @@ export async function registerRoutes(
           success: true,
           friendPublicKey: result.friendPublicKey
         });
+
+        // Notify the friend code creator about the new friend request
+        notifyFriendEvent(result.friendPublicKey, 'friend_request');
       } catch (err: any) {
         const msg = err?.message || '';
         if (msg.includes('Invalid') || msg.includes('expired')) {

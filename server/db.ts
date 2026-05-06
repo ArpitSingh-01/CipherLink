@@ -16,12 +16,13 @@ function validateDatabaseConfig(): string {
   return connectionString;
 }
 
-// Create PostgreSQL client with connection pooling
+// Create PostgreSQL client — tuned for serverless vs long-running server
+const isServerless = !!process.env.VERCEL;
 const connectionString = validateDatabaseConfig();
 const client = postgres(connectionString, {
-  max: 10, // Maximum connections in pool
-  idle_timeout: 20, // Close idle connections after 20 seconds
-  connect_timeout: 10, // Connection timeout in seconds
+  max: isServerless ? 1 : 10,           // Serverless: 1 conn (pgbouncer pools); Dev: 10
+  idle_timeout: isServerless ? 5 : 20,   // Serverless: close fast; Dev: keep warm
+  connect_timeout: 5,                    // Fail fast on cold starts
 });
 
 // Create Drizzle ORM instance with schema

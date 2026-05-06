@@ -1,0 +1,99 @@
+/**
+ * Supabase Realtime Broadcast — Server-Side
+ * 
+ * Sends notification signals to connected clients via Supabase Realtime
+ * Broadcast REST API. This replaces the ws.ts WebSocket server for
+ * production (Vercel serverless), while ws.ts continues to work for
+ * local development.
+ * 
+ * Architecture:
+ * - Server POSTs a tiny broadcast signal to Supabase Realtime REST API
+ * - Supabase pushes it to all clients subscribed to that channel
+ * - Clients invalidate their React Query cache and fetch fresh data
+ * - NO message content flows through this channel — pure signal
+ * 
+ * This is a single HTTP POST per event — works perfectly in serverless.
+ */
+
+import { log } from './log';
+
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
+
+// Validate at startup — these must be set
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  console.warn('[broadcast] SUPABASE_URL or SUPABASE_ANON_KEY not set — realtime broadcast disabled');
+}
+
+/**
+ * Send a broadcast signal via Supabase Realtime REST API.
+ * Fire-and-forget — never blocks the response.
+ */
+async function broadcastSignal(
+  channelTopic: string,
+  payload: Record<string, unknown>
+): Promise<void> {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return;
+
+  try {
+    const response = await fetch(`${SUPABASE_URL}/realtime/v1/api/broadcast`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+      },
+      body: JSON.stringify({
+        messages: [{
+          topic: channelTopic,
+          event: 'signal',
+          payload,
+        }],
+      }),
+    });
+
+    if (!response.ok) {
+      // Log but never throw — broadcast failure must not break message delivery
+      const text = await response.text().catch(() => 'unknown');
+      log(`Broadcast failed (${response.status}): ${text}`, 'broadcast');
+    }
+  } catch (error) {
+    // Network errors are non-fatal — polling fallback catches missed signals
+    log(`Broadcast error: ${error}`, 'broadcast');
+  }
+}
+
+/**
+ * Notify a user that they have new messages.
+ * Called from the message POST route after successful storage.
+ * 
+ * Only sends a signal with the sender's truncated public key — NO message content.
+ */
+export function notifyNewMessage(receiverPublicKey: string, senderPublicKey: string): void {
+  const normalizedKey = receiverPublicKey.toLowerCase().trim();
+  const channelTopic = `notifications:${normalizedKey}`;
+
+  // Fire-and-forget — never blocks the API response
+  broadcastSignal(channelTopic, {
+    type: 'new_message',
+    from: senderPublicKey.slice(0, 16), // Truncated — sufficient for cache invalidation
+    t: Date.now(),
+  }).catch(() => {}); // Swallow any unhandled rejections
+}
+
+/**
+ * Notify a user about friend-related events (new request, accepted, etc.)
+ */
+export function notifyFriendEvent(
+  targetPublicKey: string,
+  eventType: 'friend_request' | 'friend_accepted'
+): void {
+  const normalizedKey = targetPublicKey.toLowerCase().trim();
+  const channelTopic = `notifications:${normalizedKey}`;
+
+  // Fire-and-forget — never blocks the API response
+  broadcastSignal(channelTopic, {
+    type: eventType,
+    t: Date.now(),
+  }).catch(() => {}); // Swallow any unhandled rejections
+}

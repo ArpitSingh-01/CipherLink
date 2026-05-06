@@ -466,7 +466,7 @@ function PendingRequestsDialog({
       if (!res.ok) throw new Error('Failed to fetch pending requests');
       return res.json();
     },
-    refetchInterval: 2000, // Poll every 2 seconds
+    refetchInterval: 30000, // Safety fallback — Supabase Realtime handles instant delivery
   });
 
   const acceptMutation = useMutation({
@@ -1151,8 +1151,8 @@ export function ChatPage() {
 
     loadData();
 
-    // BUG-FIX (Bug 1): Poll every 10 s for newly accepted friends so linked
-    // devices (Brave) update without a page reload.
+    // Safety fallback: Poll every 60s for newly accepted friends.
+    // Supabase Realtime handles instant delivery of friend events.
     const syncFriendsInterval = setInterval(async () => {
       const identity = await getIdentity();
       if (!identity) return;
@@ -1180,7 +1180,7 @@ export function ChatPage() {
       } catch {
         // Non-fatal
       }
-    }, 10000); // every 10 seconds
+    }, 60000); // Safety fallback — Realtime handles instant delivery
 
     return () => clearInterval(syncFriendsInterval);
   }, [setLocation]);
@@ -1280,7 +1280,7 @@ export function ChatPage() {
       return res.json();
     },
     enabled: !!state.selectedFriend && !!state.identity,
-    refetchInterval: 2000, // Poll every 2 seconds for responsive messaging
+    refetchInterval: 30000, // Safety fallback — Supabase Realtime handles instant delivery
   });
 
   // Store optimistic sent messages locally

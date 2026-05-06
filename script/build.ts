@@ -14,7 +14,7 @@ const allowlist = [
   "helmet",
   "nanoid",
   "postgres",
-  "ws",
+  // "ws" intentionally excluded — not used in Vercel serverless entry
   "zod",
   "zod-validation-error",
 ];

@@ -1,4 +1,3 @@
-import 'dotenv/config';
 import express, { type Request, Response, NextFunction } from "express";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
@@ -6,7 +5,7 @@ import cors from "cors";
 import { registerRoutes } from "./routes";
 import { requestSizeLimit } from "./middleware/sizeLimit";
 import { perIPLimiter } from "./middleware/rateLimitPerIP";
-import { createServer } from "http";
+import { cleanupExpiredData } from "./cleanup";
 
 const app = express();
 
@@ -75,12 +74,10 @@ app.use((req: any, _res: any, next: any) => {
   next();
 });
 
-// Register all API routes
-const httpServer = createServer(app);
-
+// Register all API routes — no HTTP server needed in serverless (Vercel provides req/res)
 let initialized = false;
 const initPromise = (async () => {
-  await registerRoutes(httpServer, app);
+  await registerRoutes(null as any, app);
 
   // Error handler
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
@@ -116,6 +113,14 @@ export default async function handler(req: any, res: any) {
     const url = new URL(req.url, 'http://localhost');
     url.searchParams.delete('path');
     req.url = url.pathname + (url.searchParams.toString() ? '?' + url.searchParams.toString() : '');
+  }
+
+  // Probabilistic cleanup: ~1% of requests trigger expired-data cleanup.
+  // Vercel Hobby plan doesn't support crons, so this prevents unbounded
+  // growth of auth_nonces, expired messages, friend codes, etc.
+  // Fire-and-forget — never blocks the response.
+  if (Math.random() < 0.01) {
+    cleanupExpiredData().catch(() => {});
   }
 
   return app(req, res);
