@@ -53,9 +53,10 @@ app.use(perIPLimiter);
 
 app.use('/api/messages', requestSizeLimit(150 * 1024));
 
-// Body parsing — express.json() with rawBody capture.
-// On Vercel, req._body is set to true in the handler below so this is skipped.
-// On local dev (if this entry is used), express.json() runs normally.
+// Body parsing with rawBody capture for auth signature verification.
+// Vercel's built-in body parser is disabled via the `config` export below,
+// so the request stream is intact and express.json() reads it normally.
+// The `verify` callback captures the exact raw bytes for signature hashing.
 app.use(express.json({
   limit: '256kb',
   verify: (req: any, _res: any, buf: Buffer) => {
@@ -81,27 +82,19 @@ const initPromise = (async () => {
   initialized = true;
 })();
 
-// Export for Vercel
+// Disable Vercel's built-in body parser so the request stream remains
+// intact for Express to read. Without this, Vercel consumes the stream
+// before express.json()'s verify callback can capture rawBody, causing
+// all authenticated requests to fail with "Invalid signature".
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
+
+// Export handler for Vercel
 export default async function handler(req: any, res: any) {
   if (!initialized) await initPromise;
-
-  // VERCEL BODY FIX: Vercel's runtime pre-parses the request body and
-  // consumes the readable stream. express.json()'s verify callback never
-  // fires, so req.rawBody is never set. The auth middleware then computes
-  // SHA256('') instead of SHA256(actual_body) → signature mismatch → 401.
-  //
-  // Fix: Reconstruct rawBody from Vercel's pre-parsed req.body, then set
-  // req._body = true so express.json() skips re-parsing the consumed stream.
-  if (req.body !== undefined && req.body !== null) {
-    const str = typeof req.body === 'object'
-      ? JSON.stringify(req.body)
-      : String(req.body);
-    req.rawBody = Buffer.from(str, 'utf-8');
-    if (typeof req.body === 'string') {
-      try { req.body = JSON.parse(req.body); } catch { /* not JSON */ }
-    }
-    req._body = true; // skip express.json()
-  }
-
   return app(req, res);
 }
+
