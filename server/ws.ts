@@ -12,7 +12,7 @@
 
 import { WebSocketServer, WebSocket } from 'ws';
 import type { Server } from 'http';
-import { log } from './index';
+import { log } from './log';
 
 // Map of publicKey → Set of connected WebSocket clients
 const clients = new Map<string, Set<WebSocket>>();
