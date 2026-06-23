@@ -43,7 +43,7 @@ app.use(cors({
     : true,
   credentials: true,
   methods: ['GET', 'POST'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Public-Key', 'X-Timestamp', 'X-Signature', 'X-Device-Key', 'X-Request-Nonce'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Public-Key', 'X-Timestamp', 'X-Signature', 'X-Device-Key', 'X-Request-Nonce', 'X-Link-Signature'],
 }));
 
 const isDev = process.env.NODE_ENV !== 'production';
@@ -63,7 +63,7 @@ app.use(helmet({
         defaultSrc: ["'self'"],
         scriptSrc: ["'self'", "'unsafe-inline'"],
         styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-        connectSrc: ["'self'", "ws:"],
+        connectSrc: ["'self'", "ws:", "wss:", "https://*.supabase.co", "wss://*.supabase.co"],
         imgSrc: ["'self'", "data:"],
         fontSrc: ["'self'", "https://fonts.gstatic.com"],
       },
@@ -73,7 +73,7 @@ app.use(helmet({
         defaultSrc: ["'self'"],
         scriptSrc: ["'self'"],
         styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-        connectSrc: ["'self'", "https://*.vercel.app"],
+        connectSrc: ["'self'", "wss:", "https://*.vercel.app", "https://*.supabase.co", "wss://*.supabase.co"],
         imgSrc: ["'self'", "data:"],
         fontSrc: ["'self'", "https://fonts.gstatic.com"],
       },

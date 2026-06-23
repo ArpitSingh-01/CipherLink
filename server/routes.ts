@@ -677,13 +677,35 @@ export async function registerRoutes(
     }
   });
 
-  // Get status of a linking request (unauthenticated polling)
+  // Get status of a linking request (device proof-of-possession required)
+  // FIX 2-D: Require Ed25519 proof that the caller owns the device private key
   app.get("/api/link/status/:devicePublicKey", strictLimiter, async (req, res) => {
     try {
       const { devicePublicKey } = req.params;
       if (!validatePublicKey(devicePublicKey)) {
         return res.status(400).json({ error: "Invalid device public key" });
       }
+
+      // FIX 2-D: Verify proof-of-possession via X-Link-Signature header
+      // The caller signs their own devicePublicKey with their device private key
+      const linkSignature = req.headers['x-link-signature'] as string | undefined;
+      if (!linkSignature || !/^[0-9a-f]{128}$/i.test(linkSignature)) {
+        return res.status(401).json({ error: "Missing or invalid device proof" });
+      }
+
+      try {
+        const { ed25519 } = await import('@noble/curves/ed25519.js');
+        const sigBytes = new Uint8Array(linkSignature.match(/.{2}/g)!.map(b => parseInt(b, 16)));
+        const msgBytes = new TextEncoder().encode(devicePublicKey.toLowerCase().trim());
+        const pubBytes = new Uint8Array(devicePublicKey.toLowerCase().trim().match(/.{2}/g)!.map(b => parseInt(b, 16)));
+        const isValid = ed25519.verify(sigBytes, msgBytes, pubBytes);
+        if (!isValid) {
+          return res.status(401).json({ error: "Invalid device proof" });
+        }
+      } catch {
+        return res.status(401).json({ error: "Invalid device proof" });
+      }
+
       const request = await storage.getLinkingRequestByDevice(devicePublicKey.toLowerCase().trim());
 
       if (!request) {

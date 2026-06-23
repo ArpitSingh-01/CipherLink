@@ -503,3 +503,25 @@ export async function decryptWithSecret(
 
   return new TextDecoder().decode(decrypted);
 }
+
+// ==================== WEBSOCKET CHALLENGE AUTH (FIX 2-A) ====================
+
+/**
+ * Sign a WebSocket challenge nonce with the device's Ed25519 private key.
+ * 
+ * Protocol:
+ *   1. Server sends {"type":"challenge","nonce":"<64 hex chars>"}
+ *   2. Client calls signChallenge(nonce, devicePrivateKeyHex)
+ *   3. Client sends {"type":"challenge_response","signature":"<128 hex>","devicePublicKey":"<64 hex>"}
+ *
+ * @param nonceHex    The 64-char hex nonce from the server challenge
+ * @param devicePrivateKeyHex  The device's Ed25519 private key (64 hex chars = 32 bytes)
+ * @returns The Ed25519 signature as a 128-char hex string
+ */
+export function signChallenge(nonceHex: string, devicePrivateKeyHex: string): string {
+  const nonceBytes = hexToBytes(nonceHex);
+  const privateKeyBytes = hexToBytes(devicePrivateKeyHex);
+  const signature = ed25519.sign(nonceBytes, privateKeyBytes);
+  return bytesToHex(signature);
+}
+
