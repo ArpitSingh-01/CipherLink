@@ -579,7 +579,7 @@
           "name": "5.1 Accept non-existent request → 404",
           "request": {
             "method": "POST",
-            "url": "{{BASE_URL}}/api/friends/accept",
+            "url": "{{BASE_URL}}/api/friend-requests/accept",
             "header": [
               { "key": "Content-Type", "value": "application/json" },
               { "key": "X-Public-Key", "value": "{{AUTH_PUBLIC_KEY}}" },
@@ -612,7 +612,7 @@
           "name": "5.2 Decline non-existent request → 404",
           "request": {
             "method": "POST",
-            "url": "{{BASE_URL}}/api/friends/decline",
+            "url": "{{BASE_URL}}/api/friend-requests/decline",
             "header": [
               { "key": "Content-Type", "value": "application/json" },
               { "key": "X-Public-Key", "value": "{{AUTH_PUBLIC_KEY}}" },
