@@ -1,0 +1,1239 @@
+{
+  "info": {
+    "name": "CipherLink Security Verification Suite",
+    "description": "Comprehensive security test suite for CipherLink E2E encrypted chat. Covers authentication, authorization, device management, message security, WebSocket auth, rate limiting, security headers, and end-to-end flows.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "BASE_URL", "value": "http://localhost:5000" },
+    { "key": "AUTH_PUBLIC_KEY", "value": "" },
+    { "key": "AUTH_DEVICE_KEY", "value": "" },
+    { "key": "AUTH_TIMESTAMP", "value": "" },
+    { "key": "AUTH_SIGNATURE", "value": "" },
+    { "key": "FRIEND_PUBLIC_KEY", "value": "" },
+    { "key": "FRIEND_DEVICE_KEY", "value": "" },
+    { "key": "NON_FRIEND_PUBLIC_KEY", "value": "" },
+    { "key": "PENDING_FRIEND_PUBLIC_KEY", "value": "" },
+    { "key": "REVOKED_DEVICE_KEY", "value": "" }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "pm.environment.set('AUTH_TIMESTAMP', Date.now().toString());"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "GROUP 1 — AUTH",
+      "description": "Authentication header validation tests",
+      "item": [
+        {
+          "name": "1.1 No auth headers → 401",
+          "request": {
+            "method": "GET",
+            "url": "{{BASE_URL}}/api/friends",
+            "header": []
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('No auth headers returns 401', () => {",
+                  "  pm.response.to.have.status(401);",
+                  "});",
+                  "pm.test('Response time under 2000ms', () => {",
+                  "  pm.expect(pm.response.responseTime).to.be.below(2000);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "1.2 X-Public-Key present but X-Signature missing → 401",
+          "request": {
+            "method": "GET",
+            "url": "{{BASE_URL}}/api/friends",
+            "header": [
+              { "key": "X-Public-Key", "value": "{{AUTH_PUBLIC_KEY}}" },
+              { "key": "X-Timestamp", "value": "{{AUTH_TIMESTAMP}}" }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Missing signature returns 401', () => {",
+                  "  pm.response.to.have.status(401);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "1.3 X-Signature present but X-Public-Key missing → 401",
+          "request": {
+            "method": "GET",
+            "url": "{{BASE_URL}}/api/friends",
+            "header": [
+              { "key": "X-Signature", "value": "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef" },
+              { "key": "X-Timestamp", "value": "{{AUTH_TIMESTAMP}}" }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Missing public key returns 401', () => {",
+                  "  pm.response.to.have.status(401);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "1.4 Timestamp >5min in the past → 401",
+          "request": {
+            "method": "GET",
+            "url": "{{BASE_URL}}/api/friends",
+            "header": [
+              { "key": "X-Public-Key", "value": "{{AUTH_PUBLIC_KEY}}" },
+              { "key": "X-Signature", "value": "{{AUTH_SIGNATURE}}" },
+              { "key": "X-Timestamp", "value": "1000000000000" },
+              { "key": "X-Device-Key", "value": "{{AUTH_DEVICE_KEY}}" }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Old timestamp returns 401', () => {",
+                  "  pm.response.to.have.status(401);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "1.5 Timestamp >5min in the future → 401",
+          "request": {
+            "method": "GET",
+            "url": "{{BASE_URL}}/api/friends",
+            "header": [
+              { "key": "X-Public-Key", "value": "{{AUTH_PUBLIC_KEY}}" },
+              { "key": "X-Signature", "value": "{{AUTH_SIGNATURE}}" },
+              { "key": "X-Timestamp", "value": "9999999999999" },
+              { "key": "X-Device-Key", "value": "{{AUTH_DEVICE_KEY}}" }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Future timestamp returns 401', () => {",
+                  "  pm.response.to.have.status(401);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "1.6 Signature wrong length (63 chars) → 401",
+          "request": {
+            "method": "GET",
+            "url": "{{BASE_URL}}/api/friends",
+            "header": [
+              { "key": "X-Public-Key", "value": "{{AUTH_PUBLIC_KEY}}" },
+              { "key": "X-Signature", "value": "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbee" },
+              { "key": "X-Timestamp", "value": "{{AUTH_TIMESTAMP}}" },
+              { "key": "X-Device-Key", "value": "{{AUTH_DEVICE_KEY}}" }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Wrong length signature returns 401', () => {",
+                  "  pm.response.to.have.status(401);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "1.7 Valid format signature but wrong key → 401",
+          "request": {
+            "method": "GET",
+            "url": "{{BASE_URL}}/api/friends",
+            "header": [
+              { "key": "X-Public-Key", "value": "{{AUTH_PUBLIC_KEY}}" },
+              { "key": "X-Signature", "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" },
+              { "key": "X-Timestamp", "value": "{{AUTH_TIMESTAMP}}" },
+              { "key": "X-Device-Key", "value": "{{AUTH_DEVICE_KEY}}" }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Wrong key signature returns 401', () => {",
+                  "  pm.response.to.have.status(401);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "1.8 Valid auth but unregistered public key → 401 or 404",
+          "request": {
+            "method": "GET",
+            "url": "{{BASE_URL}}/api/friends",
+            "header": [
+              { "key": "X-Public-Key", "value": "0000000000000000000000000000000000000000000000000000000000000000" },
+              { "key": "X-Signature", "value": "{{AUTH_SIGNATURE}}" },
+              { "key": "X-Timestamp", "value": "{{AUTH_TIMESTAMP}}" },
+              { "key": "X-Device-Key", "value": "{{AUTH_DEVICE_KEY}}" }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Unregistered key returns 401 or 404', () => {",
+                  "  pm.expect([401, 404]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "GROUP 2 — FRIENDSHIP AUTHORIZATION",
+      "description": "Core access control boundary tests",
+      "item": [
+        {
+          "name": "2.1 Stranger sends message → silent 200, no messageId",
+          "request": {
+            "method": "POST",
+            "url": "{{BASE_URL}}/api/messages",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Public-Key", "value": "{{NON_FRIEND_PUBLIC_KEY}}" },
+              { "key": "X-Signature", "value": "{{AUTH_SIGNATURE}}" },
+              { "key": "X-Timestamp", "value": "{{AUTH_TIMESTAMP}}" },
+              { "key": "X-Device-Key", "value": "{{AUTH_DEVICE_KEY}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"receiverPublicKey\":\"{{AUTH_PUBLIC_KEY}}\",\"encryptedPayloads\":[{\"devicePublicKey\":\"{{AUTH_DEVICE_KEY}}\",\"ciphertext\":\"abcd1234\",\"nonce\":\"aabbccddeeff00112233\",\"ephemeralPublicKey\":\"0000000000000000000000000000000000000000000000000000000000000001\",\"salt\":\"0000000000000000000000000000000000000000000000000000000000000002\"}],\"ttlSeconds\":3600}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Stranger message returns 200 without messageId', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.have.property('success', true);",
+                  "  pm.expect(body).to.not.have.property('messageId');",
+                  "});",
+                  "pm.test('Response time under 2000ms', () => {",
+                  "  pm.expect(pm.response.responseTime).to.be.below(2000);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.2 Pending friend sends message → silent 200, no messageId",
+          "request": {
+            "method": "POST",
+            "url": "{{BASE_URL}}/api/messages",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Public-Key", "value": "{{PENDING_FRIEND_PUBLIC_KEY}}" },
+              { "key": "X-Signature", "value": "{{AUTH_SIGNATURE}}" },
+              { "key": "X-Timestamp", "value": "{{AUTH_TIMESTAMP}}" },
+              { "key": "X-Device-Key", "value": "{{AUTH_DEVICE_KEY}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"receiverPublicKey\":\"{{AUTH_PUBLIC_KEY}}\",\"encryptedPayloads\":[{\"devicePublicKey\":\"{{AUTH_DEVICE_KEY}}\",\"ciphertext\":\"abcd1234\",\"nonce\":\"aabbccddeeff00112234\",\"ephemeralPublicKey\":\"0000000000000000000000000000000000000000000000000000000000000001\",\"salt\":\"0000000000000000000000000000000000000000000000000000000000000002\"}],\"ttlSeconds\":3600}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Pending friend message returns 200 without messageId', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.have.property('success', true);",
+                  "  pm.expect(body).to.not.have.property('messageId');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.3 Accepted mutual friend sends message → 200 with messageId",
+          "request": {
+            "method": "POST",
+            "url": "{{BASE_URL}}/api/messages",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Public-Key", "value": "{{FRIEND_PUBLIC_KEY}}" },
+              { "key": "X-Signature", "value": "{{AUTH_SIGNATURE}}" },
+              { "key": "X-Timestamp", "value": "{{AUTH_TIMESTAMP}}" },
+              { "key": "X-Device-Key", "value": "{{FRIEND_DEVICE_KEY}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"receiverPublicKey\":\"{{AUTH_PUBLIC_KEY}}\",\"encryptedPayloads\":[{\"devicePublicKey\":\"{{AUTH_DEVICE_KEY}}\",\"ciphertext\":\"abcd1234\",\"nonce\":\"aabbccddeeff00112235\",\"ephemeralPublicKey\":\"0000000000000000000000000000000000000000000000000000000000000001\",\"salt\":\"0000000000000000000000000000000000000000000000000000000000000002\"}],\"ttlSeconds\":3600}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Mutual friend message returns 200 with messageId', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.have.property('success', true);",
+                  "  pm.expect(body).to.have.property('messageId');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "GROUP 3 — DEVICE ENUMERATION",
+      "description": "Privacy of device metadata tests",
+      "item": [
+        {
+          "name": "3.1 Stranger requests device list → 404",
+          "request": {
+            "method": "GET",
+            "url": "{{BASE_URL}}/api/users/{{AUTH_PUBLIC_KEY}}/devices",
+            "header": [
+              { "key": "X-Public-Key", "value": "{{NON_FRIEND_PUBLIC_KEY}}" },
+              { "key": "X-Signature", "value": "{{AUTH_SIGNATURE}}" },
+              { "key": "X-Timestamp", "value": "{{AUTH_TIMESTAMP}}" },
+              { "key": "X-Device-Key", "value": "{{AUTH_DEVICE_KEY}}" }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Stranger device list returns 404', () => {",
+                  "  pm.response.to.have.status(404);",
+                  "});",
+                  "pm.test('Response body does not confirm existence', () => {",
+                  "  const text = pm.response.text();",
+                  "  pm.expect(text.toLowerCase()).to.not.include('exists');",
+                  "  pm.expect(text.toLowerCase()).to.not.include('registered');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3.2 Self requests own device list → 200 array",
+          "request": {
+            "method": "GET",
+            "url": "{{BASE_URL}}/api/users/{{AUTH_PUBLIC_KEY}}/devices",
+            "header": [
+              { "key": "X-Public-Key", "value": "{{AUTH_PUBLIC_KEY}}" },
+              { "key": "X-Signature", "value": "{{AUTH_SIGNATURE}}" },
+              { "key": "X-Timestamp", "value": "{{AUTH_TIMESTAMP}}" },
+              { "key": "X-Device-Key", "value": "{{AUTH_DEVICE_KEY}}" }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Self device list returns 200 array', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3.3 Mutual friend requests device list → 200 array",
+          "request": {
+            "method": "GET",
+            "url": "{{BASE_URL}}/api/users/{{AUTH_PUBLIC_KEY}}/devices",
+            "header": [
+              { "key": "X-Public-Key", "value": "{{FRIEND_PUBLIC_KEY}}" },
+              { "key": "X-Signature", "value": "{{AUTH_SIGNATURE}}" },
+              { "key": "X-Timestamp", "value": "{{AUTH_TIMESTAMP}}" },
+              { "key": "X-Device-Key", "value": "{{FRIEND_DEVICE_KEY}}" }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Friend device list returns 200 array', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3.4 Non-existent public key → 404",
+          "request": {
+            "method": "GET",
+            "url": "{{BASE_URL}}/api/users/ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff/devices",
+            "header": [
+              { "key": "X-Public-Key", "value": "{{AUTH_PUBLIC_KEY}}" },
+              { "key": "X-Signature", "value": "{{AUTH_SIGNATURE}}" },
+              { "key": "X-Timestamp", "value": "{{AUTH_TIMESTAMP}}" },
+              { "key": "X-Device-Key", "value": "{{AUTH_DEVICE_KEY}}" }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Non-existent user device list returns 404', () => {",
+                  "  pm.response.to.have.status(404);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "GROUP 4 — MESSAGE SECURITY",
+      "description": "Payload integrity, salt, replay, device targeting",
+      "item": [
+        {
+          "name": "4.1 Payload missing salt → 400",
+          "request": {
+            "method": "POST",
+            "url": "{{BASE_URL}}/api/messages",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Public-Key", "value": "{{FRIEND_PUBLIC_KEY}}" },
+              { "key": "X-Signature", "value": "{{AUTH_SIGNATURE}}" },
+              { "key": "X-Timestamp", "value": "{{AUTH_TIMESTAMP}}" },
+              { "key": "X-Device-Key", "value": "{{FRIEND_DEVICE_KEY}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"receiverPublicKey\":\"{{AUTH_PUBLIC_KEY}}\",\"encryptedPayloads\":[{\"devicePublicKey\":\"{{AUTH_DEVICE_KEY}}\",\"ciphertext\":\"abcd1234\",\"nonce\":\"aabbccddeeff00112236\",\"ephemeralPublicKey\":\"0000000000000000000000000000000000000000000000000000000000000001\"}],\"ttlSeconds\":3600}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Missing salt returns 400', () => {",
+                  "  pm.response.to.have.status(400);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.have.property('error');",
+                  "  pm.expect(body.error.toLowerCase()).to.include('salt');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4.2 Payload targeting unknown device → 400",
+          "request": {
+            "method": "POST",
+            "url": "{{BASE_URL}}/api/messages",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Public-Key", "value": "{{FRIEND_PUBLIC_KEY}}" },
+              { "key": "X-Signature", "value": "{{AUTH_SIGNATURE}}" },
+              { "key": "X-Timestamp", "value": "{{AUTH_TIMESTAMP}}" },
+              { "key": "X-Device-Key", "value": "{{FRIEND_DEVICE_KEY}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"receiverPublicKey\":\"{{AUTH_PUBLIC_KEY}}\",\"encryptedPayloads\":[{\"devicePublicKey\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"ciphertext\":\"abcd1234\",\"nonce\":\"aabbccddeeff00112237\",\"ephemeralPublicKey\":\"0000000000000000000000000000000000000000000000000000000000000001\",\"salt\":\"0000000000000000000000000000000000000000000000000000000000000002\"}],\"ttlSeconds\":3600}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Unknown device target returns 400', () => {",
+                  "  pm.response.to.have.status(400);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.have.property('error');",
+                  "  pm.expect(body.error).to.include('Unknown device');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4.3 Empty encryptedPayloads → 400",
+          "request": {
+            "method": "POST",
+            "url": "{{BASE_URL}}/api/messages",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Public-Key", "value": "{{FRIEND_PUBLIC_KEY}}" },
+              { "key": "X-Signature", "value": "{{AUTH_SIGNATURE}}" },
+              { "key": "X-Timestamp", "value": "{{AUTH_TIMESTAMP}}" },
+              { "key": "X-Device-Key", "value": "{{FRIEND_DEVICE_KEY}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"receiverPublicKey\":\"{{AUTH_PUBLIC_KEY}}\",\"encryptedPayloads\":[],\"ttlSeconds\":3600}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Empty payloads returns 400', () => {",
+                  "  pm.response.to.have.status(400);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "GROUP 5 — FRIEND REQUEST STATE MACHINE",
+      "description": "Idempotency and state transitions",
+      "item": [
+        {
+          "name": "5.1 Accept non-existent request → 404",
+          "request": {
+            "method": "POST",
+            "url": "{{BASE_URL}}/api/friends/accept",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Public-Key", "value": "{{AUTH_PUBLIC_KEY}}" },
+              { "key": "X-Signature", "value": "{{AUTH_SIGNATURE}}" },
+              { "key": "X-Timestamp", "value": "{{AUTH_TIMESTAMP}}" },
+              { "key": "X-Device-Key", "value": "{{AUTH_DEVICE_KEY}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"friendPublicKey\":\"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff\"}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Accept non-existent returns 404', () => {",
+                  "  pm.response.to.have.status(404);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.error).to.include('not found');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5.2 Decline non-existent request → 404",
+          "request": {
+            "method": "POST",
+            "url": "{{BASE_URL}}/api/friends/decline",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Public-Key", "value": "{{AUTH_PUBLIC_KEY}}" },
+              { "key": "X-Signature", "value": "{{AUTH_SIGNATURE}}" },
+              { "key": "X-Timestamp", "value": "{{AUTH_TIMESTAMP}}" },
+              { "key": "X-Device-Key", "value": "{{AUTH_DEVICE_KEY}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"friendPublicKey\":\"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff\"}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Decline non-existent returns 404', () => {",
+                  "  pm.response.to.have.status(404);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "GROUP 6 — KEY OPERATIONS",
+      "description": "Rotation, revocation, device management",
+      "item": [
+        {
+          "name": "6.1 Rotate to already-registered key → 409",
+          "request": {
+            "method": "POST",
+            "url": "{{BASE_URL}}/api/users/rotate-key",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Public-Key", "value": "{{AUTH_PUBLIC_KEY}}" },
+              { "key": "X-Signature", "value": "{{AUTH_SIGNATURE}}" },
+              { "key": "X-Timestamp", "value": "{{AUTH_TIMESTAMP}}" },
+              { "key": "X-Device-Key", "value": "{{AUTH_DEVICE_KEY}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"newPublicKey\":\"{{FRIEND_PUBLIC_KEY}}\"}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Duplicate key rotation returns 409', () => {",
+                  "  pm.response.to.have.status(409);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.error).to.include('already registered');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6.2 Revoke only device → 400",
+          "request": {
+            "method": "POST",
+            "url": "{{BASE_URL}}/api/devices/revoke",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Public-Key", "value": "{{AUTH_PUBLIC_KEY}}" },
+              { "key": "X-Signature", "value": "{{AUTH_SIGNATURE}}" },
+              { "key": "X-Timestamp", "value": "{{AUTH_TIMESTAMP}}" },
+              { "key": "X-Device-Key", "value": "{{AUTH_DEVICE_KEY}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"device_public_key\":\"{{AUTH_DEVICE_KEY}}\"}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Revoking only device returns 400', () => {",
+                  "  pm.response.to.have.status(400);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.error).to.include('only active device');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "GROUP 7 — WEBSOCKET AUTHENTICATION",
+      "description": "Challenge/response, timeouts, rate limits — manual WS tests documented as checklist",
+      "item": [
+        {
+          "name": "7.0 WebSocket Auth Test Procedures (Manual)",
+          "request": {
+            "method": "GET",
+            "url": "{{BASE_URL}}/api/friends",
+            "description": "This is a placeholder request. The actual WebSocket tests are documented in the test script below as manual procedures."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// ═══ WEBSOCKET AUTHENTICATION MANUAL TEST PROCEDURES ═══",
+                  "//",
+                  "// Test 7.1 — Challenge issued on connect",
+                  "//   Connect to ws://localhost:5000/ws/notifications?pk=<valid_pk>",
+                  "//   Expected: receive {\"type\":\"challenge\",\"nonce\":\"<64 hex chars>\"}",
+                  "//   Verify: nonce is exactly 64 hex characters",
+                  "//",
+                  "// Test 7.2 — No response → 4002 timeout",
+                  "//   Connect, receive challenge, wait 6 seconds",
+                  "//   Expected: close code 4002 (Authentication timeout)",
+                  "//",
+                  "// Test 7.3 — Wrong signature → 4003",
+                  "//   Send: {\"type\":\"challenge_response\",\"signature\":\"deadbeef...\",\"devicePublicKey\":\"<key>\"}",
+                  "//   Expected: close code 4003 (Authentication failed)",
+                  "//",
+                  "// Test 7.4 — Device not registered to identity → 4003",
+                  "//   Connect with identity A, sign with device key not registered to A",
+                  "//   Expected: 4003",
+                  "//",
+                  "// Test 7.5 — Valid signature → connected",
+                  "//   Sign nonce correctly, send challenge_response",
+                  "//   Expected: {\"type\":\"connected\"}, connection stays open",
+                  "//",
+                  "// Test 7.6 — Per-IP limit (5 connections)",
+                  "//   Open 5 WS connections, attempt 6th",
+                  "//   Expected: 6th closes with code 4029",
+                  "//",
+                  "// Test 7.7 — Reconnect gets new nonce",
+                  "//   Let timeout occur, reconnect",
+                  "//   Expected: new nonce differs from the first",
+                  "//",
+                  "// Test 7.8 — Unauthed connection receives nothing",
+                  "//   Connect but don't complete auth",
+                  "//   Have another client send a message",
+                  "//   Expected: unauthed connection receives nothing",
+                  "",
+                  "pm.test('WebSocket tests documented (manual)', () => {",
+                  "  pm.expect(true).to.be.true;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "GROUP 8 — RATE LIMITING",
+      "description": "API rate limit tests",
+      "item": [
+        {
+          "name": "8.1 Rapid requests trigger 429",
+          "request": {
+            "method": "GET",
+            "url": "{{BASE_URL}}/api/messages",
+            "header": [
+              { "key": "X-Public-Key", "value": "{{AUTH_PUBLIC_KEY}}" },
+              { "key": "X-Signature", "value": "{{AUTH_SIGNATURE}}" },
+              { "key": "X-Timestamp", "value": "{{AUTH_TIMESTAMP}}" },
+              { "key": "X-Device-Key", "value": "{{AUTH_DEVICE_KEY}}" }
+            ],
+            "description": "Run this with Collection Runner at 110 iterations, 0 delay. Requests 101+ should return 429."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// This test should be run with Collection Runner",
+                  "// at 110 iterations to verify rate limiting kicks in",
+                  "pm.test('Response is 200 or 429', () => {",
+                  "  pm.expect([200, 429]).to.include(pm.response.code);",
+                  "});",
+                  "if (pm.response.code === 429) {",
+                  "  pm.test('429 response has Retry-After or rate limit headers', () => {",
+                  "    const headers = pm.response.headers;",
+                  "    const hasRetryAfter = headers.has('Retry-After') || headers.has('RateLimit-Remaining');",
+                  "    pm.expect(hasRetryAfter).to.be.true;",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "GROUP 9 — SECURITY HEADERS",
+      "description": "CSP, CORS, HSTS verification",
+      "item": [
+        {
+          "name": "9.1 Security headers present and correct",
+          "request": {
+            "method": "GET",
+            "url": "{{BASE_URL}}/"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('X-Content-Type-Options is nosniff', () => {",
+                  "  const val = pm.response.headers.get('X-Content-Type-Options');",
+                  "  pm.expect(val).to.eql('nosniff');",
+                  "});",
+                  "pm.test('X-Powered-By is absent', () => {",
+                  "  pm.expect(pm.response.headers.has('X-Powered-By')).to.be.false;",
+                  "});",
+                  "pm.test('Content-Security-Policy is present', () => {",
+                  "  pm.expect(pm.response.headers.has('Content-Security-Policy')).to.be.true;",
+                  "});",
+                  "pm.test('CSP default-src does not contain wildcard', () => {",
+                  "  const csp = pm.response.headers.get('Content-Security-Policy') || '';",
+                  "  const defaultSrc = csp.match(/default-src[^;]*/);",
+                  "  if (defaultSrc) {",
+                  "    pm.expect(defaultSrc[0]).to.not.include(\" * \");",
+                  "  }",
+                  "});",
+                  "pm.test('CSP connect-src includes supabase.co', () => {",
+                  "  const csp = pm.response.headers.get('Content-Security-Policy') || '';",
+                  "  pm.expect(csp).to.include('supabase.co');",
+                  "});",
+                  "pm.test('CSP script-src does not contain unsafe-eval', () => {",
+                  "  const csp = pm.response.headers.get('Content-Security-Policy') || '';",
+                  "  pm.expect(csp).to.not.include(\"'unsafe-eval'\");",
+                  "});",
+                  "pm.test('X-Frame-Options is present', () => {",
+                  "  const val = pm.response.headers.get('X-Frame-Options');",
+                  "  pm.expect(['DENY', 'SAMEORIGIN']).to.include(val);",
+                  "});",
+                  "pm.test('Response does not leak internal fields', () => {",
+                  "  const text = pm.response.text();",
+                  "  pm.expect(text).to.not.include('privateKey');",
+                  "  pm.expect(text).to.not.include('stack');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "9.2 CORS preflight from unlisted origin",
+          "request": {
+            "method": "OPTIONS",
+            "url": "{{BASE_URL}}/api/friends",
+            "header": [
+              { "key": "Origin", "value": "https://evil-site.example.com" },
+              { "key": "Access-Control-Request-Method", "value": "GET" }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('CORS does not return wildcard Allow-Origin', () => {",
+                  "  const origin = pm.response.headers.get('Access-Control-Allow-Origin');",
+                  "  pm.expect(origin).to.not.eql('*');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "GROUP 10 — DATA WIPE VERIFICATION",
+      "description": "Manual data wipe test procedure",
+      "item": [
+        {
+          "name": "10.0 Data Wipe Test Procedure (Manual)",
+          "request": {
+            "method": "GET",
+            "url": "{{BASE_URL}}/",
+            "description": "Manual test — read the test script for step-by-step instructions"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// ═══ MANUAL DATA WIPE TEST PROCEDURE ═══",
+                  "//",
+                  "// PRE-CONDITION:",
+                  "// 1. Open CipherLink in a browser",
+                  "// 2. Register a new test account",
+                  "// 3. Send at least one message",
+                  "// 4. Open DevTools → Application → IndexedDB → CipherLink DB",
+                  "// 5. Confirm these stores have data:",
+                  "//    - encryptedIdentity (1 row)",
+                  "//    - deviceIdentity (1 row)       ← was the bug",
+                  "//    - deviceCryptoKey (1 row)       ← was the bug",
+                  "//    - ratchetSessions (may have rows)",
+                  "//    - sentMessages (should have rows)",
+                  "//",
+                  "// ACTION:",
+                  "// 6. Click Logout in the CipherLink UI",
+                  "//",
+                  "// VERIFY — after logout, ALL must be EMPTY:",
+                  "//    [ ] encryptedIdentity — EMPTY (0 rows)",
+                  "//    [ ] deviceIdentity    — EMPTY (0 rows)   ← critical",
+                  "//    [ ] deviceCryptoKey   — EMPTY (0 rows)   ← critical",
+                  "//    [ ] ratchetSessions   — EMPTY (0 rows)",
+                  "//    [ ] sentMessages      — EMPTY (0 rows)",
+                  "//    [ ] friends           — EMPTY (0 rows)",
+                  "//    [ ] blocklist         — EMPTY (0 rows)",
+                  "//",
+                  "// Check localStorage — NONE of these keys should exist:",
+                  "//    [ ] cipherlink-session-crypto-version",
+                  "//    [ ] cipherlink-cleanup-lock",
+                  "//    [ ] cipherlink-pin-attempts",
+                  "//    [ ] cipherlink-pin-lockout",
+                  "//",
+                  "// PASS: Every item above shows EMPTY / absent",
+                  "// FAIL: Any identity/key material survives logout",
+                  "",
+                  "pm.test('Data wipe tests documented (manual)', () => {",
+                  "  pm.expect(true).to.be.true;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "GROUP 11 — NEGATIVE / FUZZING",
+      "description": "Malformed inputs, boundary values, injection attempts",
+      "item": [
+        {
+          "name": "11.1 Empty request body → 400",
+          "request": {
+            "method": "POST",
+            "url": "{{BASE_URL}}/api/messages",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Public-Key", "value": "{{AUTH_PUBLIC_KEY}}" },
+              { "key": "X-Signature", "value": "{{AUTH_SIGNATURE}}" },
+              { "key": "X-Timestamp", "value": "{{AUTH_TIMESTAMP}}" },
+              { "key": "X-Device-Key", "value": "{{AUTH_DEVICE_KEY}}" }
+            ],
+            "body": { "mode": "raw", "raw": "" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Empty body returns 400', () => {",
+                  "  pm.response.to.have.status(400);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "11.2 receiverPublicKey 63 hex chars → 400",
+          "request": {
+            "method": "POST",
+            "url": "{{BASE_URL}}/api/messages",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Public-Key", "value": "{{AUTH_PUBLIC_KEY}}" },
+              { "key": "X-Signature", "value": "{{AUTH_SIGNATURE}}" },
+              { "key": "X-Timestamp", "value": "{{AUTH_TIMESTAMP}}" },
+              { "key": "X-Device-Key", "value": "{{AUTH_DEVICE_KEY}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"receiverPublicKey\":\"abcdef0123456789abcdef0123456789abcdef0123456789abcdef012345678\",\"encryptedPayloads\":[],\"ttlSeconds\":3600}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Short public key returns 400', () => {",
+                  "  pm.response.to.have.status(400);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "11.3 SQL injection in public key → 400",
+          "request": {
+            "method": "POST",
+            "url": "{{BASE_URL}}/api/messages",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Public-Key", "value": "{{AUTH_PUBLIC_KEY}}" },
+              { "key": "X-Signature", "value": "{{AUTH_SIGNATURE}}" },
+              { "key": "X-Timestamp", "value": "{{AUTH_TIMESTAMP}}" },
+              { "key": "X-Device-Key", "value": "{{AUTH_DEVICE_KEY}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"receiverPublicKey\":\"' OR 1=1 --\",\"encryptedPayloads\":[],\"ttlSeconds\":3600}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('SQL injection attempt returns 400', () => {",
+                  "  pm.response.to.have.status(400);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.have.property('error');",
+                  "  pm.expect(body.error).to.not.include('stack');",
+                  "  pm.expect(body.error).to.not.include('at ');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "11.4 Negative ttlSeconds → 400",
+          "request": {
+            "method": "POST",
+            "url": "{{BASE_URL}}/api/messages",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Public-Key", "value": "{{FRIEND_PUBLIC_KEY}}" },
+              { "key": "X-Signature", "value": "{{AUTH_SIGNATURE}}" },
+              { "key": "X-Timestamp", "value": "{{AUTH_TIMESTAMP}}" },
+              { "key": "X-Device-Key", "value": "{{FRIEND_DEVICE_KEY}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"receiverPublicKey\":\"{{AUTH_PUBLIC_KEY}}\",\"encryptedPayloads\":[{\"devicePublicKey\":\"{{AUTH_DEVICE_KEY}}\",\"ciphertext\":\"abcd1234\",\"nonce\":\"aabbccddeeff00112238\",\"ephemeralPublicKey\":\"0000000000000000000000000000000000000000000000000000000000000001\",\"salt\":\"0000000000000000000000000000000000000000000000000000000000000002\"}],\"ttlSeconds\":-1}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Negative TTL returns 400', () => {",
+                  "  pm.response.to.have.status(400);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "11.5 Proto pollution attempt → ignored safely",
+          "request": {
+            "method": "POST",
+            "url": "{{BASE_URL}}/api/messages",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Public-Key", "value": "{{FRIEND_PUBLIC_KEY}}" },
+              { "key": "X-Signature", "value": "{{AUTH_SIGNATURE}}" },
+              { "key": "X-Timestamp", "value": "{{AUTH_TIMESTAMP}}" },
+              { "key": "X-Device-Key", "value": "{{FRIEND_DEVICE_KEY}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"receiverPublicKey\":\"{{AUTH_PUBLIC_KEY}}\",\"encryptedPayloads\":[{\"devicePublicKey\":\"{{AUTH_DEVICE_KEY}}\",\"ciphertext\":\"abcd1234\",\"nonce\":\"aabbccddeeff00112239\",\"ephemeralPublicKey\":\"0000000000000000000000000000000000000000000000000000000000000001\",\"salt\":\"0000000000000000000000000000000000000000000000000000000000000002\"}],\"ttlSeconds\":3600,\"__proto__\":{\"isAdmin\":true}}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Proto pollution is handled safely', () => {",
+                  "  pm.expect([200, 400]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "GROUP 12 — END-TO-END FLOWS",
+      "description": "Multi-step sequences mirroring real user journeys. Run with Collection Runner in order.",
+      "item": [
+        {
+          "name": "Flow A — Friend Registration and Messaging",
+          "item": [
+            {
+              "name": "A.1 Alice registers",
+              "request": {
+                "method": "POST",
+                "url": "{{BASE_URL}}/api/users/register",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"publicKey\":\"{{AUTH_PUBLIC_KEY}}\",\"devicePublicKey\":\"{{AUTH_DEVICE_KEY}}\",\"identitySignature\":\"test\"}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Alice registers successfully', () => {",
+                      "  pm.expect([200, 201, 409]).to.include(pm.response.code);",
+                      "});",
+                      "pm.test('Response does not leak internal fields', () => {",
+                      "  const body = pm.response.json();",
+                      "  pm.expect(body).to.not.have.property('password');",
+                      "  pm.expect(body).to.not.have.property('privateKey');",
+                      "  pm.expect(body).to.not.have.property('stack');",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "A.2 Alice creates friend code",
+              "request": {
+                "method": "POST",
+                "url": "{{BASE_URL}}/api/friends/code",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "X-Public-Key", "value": "{{AUTH_PUBLIC_KEY}}" },
+                  { "key": "X-Signature", "value": "{{AUTH_SIGNATURE}}" },
+                  { "key": "X-Timestamp", "value": "{{AUTH_TIMESTAMP}}" },
+                  { "key": "X-Device-Key", "value": "{{AUTH_DEVICE_KEY}}" }
+                ],
+                "body": { "mode": "raw", "raw": "{}" }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Friend code created', () => {",
+                      "  pm.response.to.have.status(200);",
+                      "  const body = pm.response.json();",
+                      "  pm.expect(body).to.have.property('code');",
+                      "  pm.environment.set('friend_code', body.code);",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Flow B — Device Revocation",
+          "item": [
+            {
+              "name": "B.1 Alice revokes her only device → 400",
+              "request": {
+                "method": "POST",
+                "url": "{{BASE_URL}}/api/devices/revoke",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "X-Public-Key", "value": "{{AUTH_PUBLIC_KEY}}" },
+                  { "key": "X-Signature", "value": "{{AUTH_SIGNATURE}}" },
+                  { "key": "X-Timestamp", "value": "{{AUTH_TIMESTAMP}}" },
+                  { "key": "X-Device-Key", "value": "{{AUTH_DEVICE_KEY}}" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"device_public_key\":\"{{AUTH_DEVICE_KEY}}\"}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Cannot revoke last device', () => {",
+                      "  pm.response.to.have.status(400);",
+                      "  const body = pm.response.json();",
+                      "  pm.expect(body.error).to.include('only active device');",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
