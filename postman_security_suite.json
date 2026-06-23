@@ -36,7 +36,7 @@
           "name": "1.1 No auth headers → 401",
           "request": {
             "method": "GET",
-            "url": "{{BASE_URL}}/api/friends",
+            "url": "{{BASE_URL}}/api/friends/{{AUTH_PUBLIC_KEY}}",
             "header": []
           },
           "event": [
@@ -60,7 +60,7 @@
           "name": "1.2 X-Public-Key present but X-Signature missing → 401",
           "request": {
             "method": "GET",
-            "url": "{{BASE_URL}}/api/friends",
+            "url": "{{BASE_URL}}/api/friends/{{AUTH_PUBLIC_KEY}}",
             "header": [
               { "key": "X-Public-Key", "value": "{{AUTH_PUBLIC_KEY}}" },
               { "key": "X-Timestamp", "value": "{{AUTH_TIMESTAMP}}" }
@@ -84,7 +84,7 @@
           "name": "1.3 X-Signature present but X-Public-Key missing → 401",
           "request": {
             "method": "GET",
-            "url": "{{BASE_URL}}/api/friends",
+            "url": "{{BASE_URL}}/api/friends/{{AUTH_PUBLIC_KEY}}",
             "header": [
               { "key": "X-Signature", "value": "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef" },
               { "key": "X-Timestamp", "value": "{{AUTH_TIMESTAMP}}" }
@@ -108,7 +108,7 @@
           "name": "1.4 Timestamp >5min in the past → 401",
           "request": {
             "method": "GET",
-            "url": "{{BASE_URL}}/api/friends",
+            "url": "{{BASE_URL}}/api/friends/{{AUTH_PUBLIC_KEY}}",
             "header": [
               { "key": "X-Public-Key", "value": "{{AUTH_PUBLIC_KEY}}" },
               { "key": "X-Signature", "value": "{{AUTH_SIGNATURE}}" },
@@ -134,7 +134,7 @@
           "name": "1.5 Timestamp >5min in the future → 401",
           "request": {
             "method": "GET",
-            "url": "{{BASE_URL}}/api/friends",
+            "url": "{{BASE_URL}}/api/friends/{{AUTH_PUBLIC_KEY}}",
             "header": [
               { "key": "X-Public-Key", "value": "{{AUTH_PUBLIC_KEY}}" },
               { "key": "X-Signature", "value": "{{AUTH_SIGNATURE}}" },
@@ -160,7 +160,7 @@
           "name": "1.6 Signature wrong length (63 chars) → 401",
           "request": {
             "method": "GET",
-            "url": "{{BASE_URL}}/api/friends",
+            "url": "{{BASE_URL}}/api/friends/{{AUTH_PUBLIC_KEY}}",
             "header": [
               { "key": "X-Public-Key", "value": "{{AUTH_PUBLIC_KEY}}" },
               { "key": "X-Signature", "value": "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbee" },
@@ -186,7 +186,7 @@
           "name": "1.7 Valid format signature but wrong key → 401",
           "request": {
             "method": "GET",
-            "url": "{{BASE_URL}}/api/friends",
+            "url": "{{BASE_URL}}/api/friends/{{AUTH_PUBLIC_KEY}}",
             "header": [
               { "key": "X-Public-Key", "value": "{{AUTH_PUBLIC_KEY}}" },
               { "key": "X-Signature", "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" },
@@ -212,7 +212,7 @@
           "name": "1.8 Valid auth but unregistered public key → 401 or 404",
           "request": {
             "method": "GET",
-            "url": "{{BASE_URL}}/api/friends",
+            "url": "{{BASE_URL}}/api/friends/{{AUTH_PUBLIC_KEY}}",
             "header": [
               { "key": "X-Public-Key", "value": "0000000000000000000000000000000000000000000000000000000000000000" },
               { "key": "X-Signature", "value": "{{AUTH_SIGNATURE}}" },
@@ -721,7 +721,7 @@
           "name": "7.0 WebSocket Auth Test Procedures (Manual)",
           "request": {
             "method": "GET",
-            "url": "{{BASE_URL}}/api/friends",
+            "url": "{{BASE_URL}}/api/friends/{{AUTH_PUBLIC_KEY}}",
             "description": "This is a placeholder request. The actual WebSocket tests are documented in the test script below as manual procedures."
           },
           "event": [
@@ -877,7 +877,7 @@
           "name": "9.2 CORS preflight from unlisted origin",
           "request": {
             "method": "OPTIONS",
-            "url": "{{BASE_URL}}/api/friends",
+            "url": "{{BASE_URL}}/api/friends/{{AUTH_PUBLIC_KEY}}",
             "header": [
               { "key": "Origin", "value": "https://evil-site.example.com" },
               { "key": "Access-Control-Request-Method", "value": "GET" }
