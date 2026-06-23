@@ -395,7 +395,8 @@ export async function fingerprintIdentityKey(publicKeyBytes: Uint8Array): Promis
  */
 export async function computeSafetyNumber(
   localPublicKey: Uint8Array,
-  remotePublicKey: Uint8Array
+  remotePublicKey: Uint8Array,
+  sessionId?: string
 ): Promise<{ hex: string; display: string; bytes: Uint8Array }> {
   // Canonical order: lexicographic sort ensures both participants compute identically
   const [first, second] =
@@ -403,9 +404,13 @@ export async function computeSafetyNumber(
       ? [localPublicKey, remotePublicKey]
       : [remotePublicKey, localPublicKey];
 
-  const combined = new Uint8Array(first.length + second.length);
+  // FIX 4-B: When sessionId is provided, mix it into the hash for per-session binding
+  const sessionBytes = sessionId ? new TextEncoder().encode(sessionId) : new Uint8Array(0);
+
+  const combined = new Uint8Array(first.length + second.length + sessionBytes.length);
   combined.set(first, 0);
   combined.set(second, first.length);
+  combined.set(sessionBytes, first.length + second.length);
 
   const hashBuf = await crypto.subtle.digest('SHA-256', combined);
   const bytes = new Uint8Array(hashBuf);

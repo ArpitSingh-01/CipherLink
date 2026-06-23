@@ -824,43 +824,93 @@ export async function cleanupDatabase(): Promise<void> {
   }
 }
 
-const CLEANUP_LOCK_KEY = "cipherlink_cleanup_lock";
-
-function acquireCleanupLock(): boolean {
-  try {
-    const nowTs = Date.now();
-    const existing = localStorage.getItem(CLEANUP_LOCK_KEY);
-
-    if (existing) {
-      const age = nowTs - parseInt(existing);
-      if (age < 5 * 60 * 1000) return false;
-    }
-
-    localStorage.setItem(CLEANUP_LOCK_KEY, nowTs.toString());
-
-    // VERIFY we still own it
-    return localStorage.getItem(CLEANUP_LOCK_KEY) === nowTs.toString();
-  } catch {
-    return true;
-  }
-}
+// FIX 4-C: Web Locks API-based cleanup coordination (replaces localStorage lock)
+// Web Locks provides true cross-tab mutual exclusion without polling.
 
 let cleanupStarted = false;
+
+/**
+ * Run the cleanup function under a Web Lock.
+ * Only one tab can hold the lock at a time — other tabs skip silently.
+ */
+async function runCleanupWithLock(): Promise<void> {
+  // Feature-detect Web Locks API
+  if (typeof navigator !== 'undefined' && navigator.locks) {
+    await navigator.locks.request(
+      'cipherlink-cleanup',
+      { ifAvailable: true }, // Don't queue — skip if another tab holds the lock
+      async (lock) => {
+        if (!lock) return; // Another tab is running cleanup
+        await cleanupDatabase();
+      }
+    );
+  } else {
+    // Fallback for environments without Web Locks (older browsers)
+    await cleanupDatabase();
+  }
+}
 
 export function startCleanupWorker() {
   if (cleanupStarted) return;
   cleanupStarted = true;
 
   if (typeof setInterval !== 'undefined') {
-    if (acquireCleanupLock()) {
-      setInterval(async () => {
-        try {
-          await cleanupDatabase();
-          try { localStorage.setItem(CLEANUP_LOCK_KEY, Date.now().toString()); } catch(e){} // Keeplock
-        } catch (err) {
-          console.error("Cleanup worker error", err);
-        }
-      }, 5 * 60 * 1000);
-    }
+    setInterval(async () => {
+      try {
+        await runCleanupWithLock();
+      } catch (err) {
+        console.error("Cleanup worker error", err);
+      }
+    }, 5 * 60 * 1000);
   }
 }
+
+// ==================== PIN BRUTE-FORCE RATE LIMITING (FIX 4-D) ====================
+
+const PIN_ATTEMPTS_KEY = 'cipherlink-pin-attempts';
+const PIN_LOCKOUT_KEY = 'cipherlink-pin-lockout';
+const MAX_PIN_ATTEMPTS = 5;
+const LOCKOUT_DURATION_MS = 5 * 60 * 1000; // 5 minutes
+
+/**
+ * Check if PIN entry is currently locked out due to too many failed attempts.
+ * @returns remaining lockout time in ms, or 0 if not locked out
+ */
+export function getPinLockoutRemaining(): number {
+  try {
+    const lockoutUntil = localStorage.getItem(PIN_LOCKOUT_KEY);
+    if (!lockoutUntil) return 0;
+    const remaining = parseInt(lockoutUntil, 10) - Date.now();
+    return remaining > 0 ? remaining : 0;
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * Record a failed PIN attempt. Returns true if the account is now locked out.
+ */
+export function recordFailedPinAttempt(): boolean {
+  try {
+    const attempts = parseInt(localStorage.getItem(PIN_ATTEMPTS_KEY) || '0', 10) + 1;
+    localStorage.setItem(PIN_ATTEMPTS_KEY, attempts.toString());
+    if (attempts >= MAX_PIN_ATTEMPTS) {
+      localStorage.setItem(PIN_LOCKOUT_KEY, (Date.now() + LOCKOUT_DURATION_MS).toString());
+      return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Reset PIN attempt counter (call after successful authentication).
+ */
+export function resetPinAttempts(): void {
+  try {
+    localStorage.removeItem(PIN_ATTEMPTS_KEY);
+    localStorage.removeItem(PIN_LOCKOUT_KEY);
+  } catch { /* ignore */ }
+}
+
