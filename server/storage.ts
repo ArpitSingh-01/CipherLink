@@ -44,9 +44,10 @@ export interface IStorage {
   createFriend(friend: InsertFriend): Promise<Friend>;
   getFriends(publicKey: string): Promise<Friend[]>;
   getPendingFriendRequests(publicKey: string): Promise<Friend[]>;
-  acceptFriendRequest(userPublicKey: string, friendPublicKey: string): Promise<void>;
-  declineFriendRequest(userPublicKey: string, friendPublicKey: string): Promise<void>;
+  acceptFriendRequest(userPublicKey: string, friendPublicKey: string): Promise<boolean>;
+  declineFriendRequest(userPublicKey: string, friendPublicKey: string): Promise<boolean>;
   areFriends(publicKey1: string, publicKey2: string): Promise<boolean>;
+  areMutualFriends(publicKey1: string, publicKey2: string): Promise<boolean>;
 
   // Atomic friend code redemption (FIX 7)
   redeemFriendCode(
@@ -79,6 +80,12 @@ export interface IStorage {
   revokeDevice(devicePublicKey: string): Promise<void>;
   getDevices(userPublicKey: string): Promise<Device[]>;
   getDeviceByPublicKey(devicePublicKey: string): Promise<Device | undefined>;
+
+  // User lookup by public key (alias for getUser)
+  getUserByPublicKey(publicKey: string): Promise<User | undefined>;
+
+  // Primary device promotion (FIX 1-G)
+  updateUserPrimaryDevice(userPublicKey: string, newDevicePublicKey: string): Promise<void>;
 
   // Identity Key Rotation
   rotateIdentityKey(userPublicKey: string, newPublicKey: string): Promise<void>;
@@ -261,17 +268,19 @@ export class MemStorage implements IStorage {
     );
   }
 
-  async acceptFriendRequest(userPublicKey: string, friendPublicKey: string): Promise<void> {
+  async acceptFriendRequest(userPublicKey: string, friendPublicKey: string): Promise<boolean> {
     const friend = Array.from(this.friends.values()).find(
       (f) => f.userPublicKey === userPublicKey && f.friendPublicKey === friendPublicKey && f.status === 'pending'
     );
     if (friend) {
       friend.status = 'accepted';
       friend.updatedAt = new Date();
+      return true;
     }
+    return false;
   }
 
-  async declineFriendRequest(userPublicKey: string, friendPublicKey: string): Promise<void> {
+  async declineFriendRequest(userPublicKey: string, friendPublicKey: string): Promise<boolean> {
     // BUG-FIX (Bug 2): Only remove the requester's OWN pending entry.
     // Deleting both sides would destroy the friend-code creator's accepted row.
     const toDelete = Array.from(this.friends.entries()).filter(
@@ -280,9 +289,11 @@ export class MemStorage implements IStorage {
         f.friendPublicKey === friendPublicKey &&
         f.status === 'pending'
     );
+    if (toDelete.length === 0) return false;
     for (const [id] of toDelete) {
       this.friends.delete(id);
     }
+    return true;
   }
 
   async areFriends(publicKey1: string, publicKey2: string): Promise<boolean> {
@@ -292,6 +303,20 @@ export class MemStorage implements IStorage {
       (friend) =>
         (friend.userPublicKey === k1 && friend.friendPublicKey === k2) ||
         (friend.userPublicKey === k2 && friend.friendPublicKey === k1)
+    );
+  }
+
+  // NEW: Strict check — only ACCEPTED mutual friendships authorize sensitive operations
+  async areMutualFriends(publicKey1: string, publicKey2: string): Promise<boolean> {
+    const k1 = publicKey1.toLowerCase().trim();
+    const k2 = publicKey2.toLowerCase().trim();
+    return Array.from(this.friends.values()).some(
+      (friend) =>
+        friend.status === 'accepted' &&
+        (
+          (friend.userPublicKey === k1 && friend.friendPublicKey === k2) ||
+          (friend.userPublicKey === k2 && friend.friendPublicKey === k1)
+        )
     );
   }
 
@@ -322,11 +347,47 @@ export class MemStorage implements IStorage {
     return { friendPublicKey: friendCode.identityPublicKey };
   }
 
+  /*
+   * REQUIRED DATABASE MIGRATION — run this manually or via your migration tool:
+   *
+   * ALTER TABLE messages
+   *   ADD CONSTRAINT messages_sender_nonce_unique
+   *   UNIQUE (sender_public_key, nonce);
+   *
+   * Without this constraint the server-side duplicate check is advisory only.
+   * The code-level check prevents duplicates in-process; the DB constraint
+   * prevents them across restarts and concurrent instances.
+   */
+
   // Messages
   async createMessage(insertMessage: InsertMessage): Promise<Message> {
     const id = randomUUID();
     const normalizedSender = insertMessage.senderPublicKey.toLowerCase().trim();
     const normalizedReceiver = insertMessage.receiverPublicKey.toLowerCase().trim();
+
+    // FIX 1-I: Check for duplicate nonce from the same sender (replay detection)
+    const payloads = JSON.parse(insertMessage.encryptedPayloads);
+    if (Array.isArray(payloads)) {
+      for (const payload of payloads) {
+        if (payload.nonce) {
+          const isDuplicate = Array.from(this.messages.values()).some(
+            (msg) => {
+              const existingPayloads = JSON.parse(msg.encryptedPayloads);
+              return msg.senderPublicKey === normalizedSender &&
+                Array.isArray(existingPayloads) &&
+                existingPayloads.some((p: any) => p.nonce === payload.nonce);
+            }
+          );
+          if (isDuplicate) {
+            throw Object.assign(
+              new Error('Duplicate message'),
+              { code: 'DUPLICATE_MESSAGE' }
+            );
+          }
+        }
+      }
+    }
+
     const message: Message = {
       id,
       senderPublicKey: normalizedSender,
@@ -516,6 +577,22 @@ export class MemStorage implements IStorage {
   async getDeviceByPublicKey(devicePublicKey: string): Promise<Device | undefined> {
     const normalizedKey = devicePublicKey.toLowerCase().trim();
     return this.devices.get(normalizedKey);
+  }
+
+  // FIX 1-G: Alias for getUser — keeps the interface consistent with route handler expectations
+  async getUserByPublicKey(publicKey: string): Promise<User | undefined> {
+    return this.getUser(publicKey);
+  }
+
+  // FIX 1-G: Update the primary device key for a user (e.g., after revoking the primary)
+  async updateUserPrimaryDevice(userPublicKey: string, newDevicePublicKey: string): Promise<void> {
+    const normalizedUser = userPublicKey.toLowerCase().trim();
+    const normalizedDevice = newDevicePublicKey.toLowerCase().trim();
+    const user = Array.from(this.users.values()).find(u => u.publicKey === normalizedUser);
+    if (user) {
+      user.devicePublicKey = normalizedDevice;
+      user.updatedAt = new Date();
+    }
   }
 
   // Identity Key Rotation

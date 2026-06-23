@@ -185,7 +185,16 @@ export async function registerRoutes(
       });
 
       res.json({ success: true });
-    } catch (error) {
+    } catch (error: any) {
+      // Postgres unique constraint violation → key already registered elsewhere
+      if (
+        error?.code === '23505' ||
+        error?.message?.includes('duplicate') ||
+        error?.message?.includes('unique')
+      ) {
+        return res.status(409).json({ error: 'Public key already registered to another account' });
+      }
+      devLog('Error rotating key:', error);
       res.status(500).json({ error: "Internal server error" });
     }
   });
@@ -236,7 +245,20 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Invalid public key" });
       }
 
-      const devices = await storage.getDevices(publicKey.toLowerCase().trim());
+      const normalizedTarget = publicKey.toLowerCase().trim();
+      const requestingKey = req.authPublicKey!;
+
+      // Allow: account owner fetching their own devices
+      // Allow: accepted mutual friend (needs device keys for E2E fan-out encryption)
+      // Deny: all others — return 404 to avoid confirming account existence
+      const isSelf = requestingKey === normalizedTarget;
+      const isFriend = !isSelf && await storage.areMutualFriends(requestingKey, normalizedTarget);
+
+      if (!isSelf && !isFriend) {
+        return res.status(404).json({ error: 'Not found' }); // 404 not 403 — no existence confirmation
+      }
+
+      const devices = await storage.getDevices(normalizedTarget);
 
       const activeDevices = devices
         .filter(d => !d.revoked)
@@ -397,6 +419,19 @@ export async function registerRoutes(
       }
 
       await storage.revokeDevice(devicePublicKey);
+
+      // FIX 1-G: After revoking, promote a new primary if needed
+      const updatedUser = await storage.getUserByPublicKey(req.authPublicKey!);
+      if (updatedUser && updatedUser.devicePublicKey === normalizedDeviceKey) {
+        const remainingDevices = await storage.getDevices(req.authPublicKey!);
+        const newPrimary = remainingDevices.find(
+          d => !d.revoked && d.devicePublicKey !== normalizedDeviceKey
+        );
+        if (newPrimary) {
+          await storage.updateUserPrimaryDevice(req.authPublicKey!, newPrimary.devicePublicKey);
+        }
+        // If no remaining devices: the last-device guard above already prevented this path
+      }
 
       logSecurityEvent({
         type: 'device_management',
@@ -868,7 +903,10 @@ export async function registerRoutes(
       // Normalize after validation
       const friendPublicKey = rawFriendKey.toLowerCase().trim();
 
-      await storage.acceptFriendRequest(userPublicKey, friendPublicKey);
+      const affected = await storage.acceptFriendRequest(userPublicKey, friendPublicKey);
+      if (!affected) {
+        return res.status(404).json({ error: 'Friend request not found or already handled' });
+      }
 
       res.json({ success: true, friendPublicKey });
 
@@ -894,7 +932,10 @@ export async function registerRoutes(
       // Normalize after validation
       const friendPublicKey = rawFriendKey.toLowerCase().trim();
 
-      await storage.declineFriendRequest(userPublicKey, friendPublicKey);
+      const affected = await storage.declineFriendRequest(userPublicKey, friendPublicKey);
+      if (!affected) {
+        return res.status(404).json({ error: 'Friend request not found or already handled' });
+      }
 
       res.json({ success: true });
     } catch (error) {
@@ -986,6 +1027,10 @@ export async function registerRoutes(
         if (!payload.ephemeralPublicKey || !ephemeralKeySchema.safeParse(payload.ephemeralPublicKey).success) {
           return res.status(400).json({ error: "Invalid ephemeral key in payload" });
         }
+        // FIX 1-D: Reject messages missing salt — they are permanently unreadable on receipt
+        if (!payload.salt || !saltSchema.safeParse(payload.salt).success) {
+          return res.status(400).json({ error: 'Invalid or missing salt in payload' });
+        }
       }
 
       // SEC-FIX-4: Validate TTL against strict allowed list — server controls expiresAt
@@ -1002,6 +1047,27 @@ export async function registerRoutes(
       if (isBlocked) {
         // Silently succeed to prevent enumeration
         return res.json({ success: true });
+      }
+
+      // FIX 1-A: Verify accepted mutual friendship before storing any message.
+      // Silent 200 prevents friend-list enumeration via timing attacks.
+      const friendshipExists = await storage.areMutualFriends(senderPublicKey, receiverPublicKey);
+      if (!friendshipExists) {
+        return res.json({ success: true }); // Silently succeed — never reveal delivery failure reason
+      }
+
+      // FIX 1-E: Verify submitted device keys actually belong to the receiver.
+      // Prevents storage bloat and protects against confused delivery.
+      const receiverDevices = await storage.getDevices(receiverPublicKey);
+      const activeDeviceKeys = new Set(
+        receiverDevices.filter(d => !d.revoked).map(d => d.devicePublicKey.toLowerCase())
+      );
+
+      for (const payload of encryptedPayloads) {
+        const targetKey = payload.devicePublicKey.toLowerCase();
+        if (!activeDeviceKeys.has(targetKey)) {
+          return res.status(400).json({ error: `Unknown device target: ${targetKey.slice(0, 8)}...` });
+        }
       }
 
       const message = await storage.createMessage({

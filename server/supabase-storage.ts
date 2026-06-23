@@ -274,11 +274,11 @@ export class SupabaseStorage implements IStorage {
     }
   }
 
-  async acceptFriendRequest(userPublicKey: string, friendPublicKey: string): Promise<void> {
+  async acceptFriendRequest(userPublicKey: string, friendPublicKey: string): Promise<boolean> {
     try {
       const normalizedUser = userPublicKey.toLowerCase().trim();
       const normalizedFriend = friendPublicKey.toLowerCase().trim();
-      await db.update(friends)
+      const result = await db.update(friends)
         .set({
           status: 'accepted',
           updatedAt: new Date(),
@@ -289,14 +289,16 @@ export class SupabaseStorage implements IStorage {
             eq(friends.friendPublicKey, normalizedFriend),
             eq(friends.status, 'pending')
           )
-        );
+        )
+        .returning({ id: friends.id });
+      return result.length > 0;
     } catch (error) {
       if (isDev) console.error('Error accepting friend request:', error);
       throw error;
     }
   }
 
-  async declineFriendRequest(userPublicKey: string, friendPublicKey: string): Promise<void> {
+  async declineFriendRequest(userPublicKey: string, friendPublicKey: string): Promise<boolean> {
     try {
       const normalizedUser = userPublicKey.toLowerCase().trim();
       const normalizedFriend = friendPublicKey.toLowerCase().trim();
@@ -306,14 +308,16 @@ export class SupabaseStorage implements IStorage {
       // creator's already-accepted friendship entry when the recipient declined.
       // The friend-code creator's `accepted` row must be preserved — their local
       // friend list entry is valid regardless of the other party's decision.
-      await db.delete(friends)
+      const result = await db.delete(friends)
         .where(
           and(
             eq(friends.userPublicKey, normalizedUser),
             eq(friends.friendPublicKey, normalizedFriend),
             eq(friends.status, 'pending')
           )
-        );
+        )
+        .returning({ id: friends.id });
+      return result.length > 0;
     } catch (error) {
       if (isDev) console.error('Error declining friend request:', error);
       throw error;
@@ -343,6 +347,30 @@ export class SupabaseStorage implements IStorage {
       return result.length > 0;
     } catch (error) {
       if (isDev) console.error('Error checking friendship:', error);
+      throw error;
+    }
+  }
+
+  async areMutualFriends(publicKey1: string, publicKey2: string): Promise<boolean> {
+    try {
+      const k1 = publicKey1.toLowerCase().trim();
+      const k2 = publicKey2.toLowerCase().trim();
+      const result = await db
+        .select()
+        .from(friends)
+        .where(
+          and(
+            eq(friends.status, 'accepted'),
+            or(
+              and(eq(friends.userPublicKey, k1), eq(friends.friendPublicKey, k2)),
+              and(eq(friends.userPublicKey, k2), eq(friends.friendPublicKey, k1))
+            )
+          )
+        )
+        .limit(1);
+      return result.length > 0;
+    } catch (error) {
+      if (isDev) console.error('Error checking mutual friendship:', error);
       throw error;
     }
   }
@@ -443,6 +471,13 @@ export class SupabaseStorage implements IStorage {
 
       return result[0];
     } catch (error: any) {
+      // FIX 1-I: Postgres unique constraint violation → emit DUPLICATE_MESSAGE code
+      if (error?.code === '23505') {
+        throw Object.assign(
+          new Error('Duplicate message'),
+          { code: 'DUPLICATE_MESSAGE' }
+        );
+      }
       if (isDev) console.error('Error creating message:', error);
       throw error;
     }
@@ -838,6 +873,25 @@ export class SupabaseStorage implements IStorage {
       return result[0];
     } catch (error) {
       if (isDev) console.error('Error getting device by public key:', error);
+      throw error;
+    }
+  }
+
+  // FIX 1-G: Alias for getUser — consistent interface
+  async getUserByPublicKey(publicKey: string): Promise<User | undefined> {
+    return this.getUser(publicKey);
+  }
+
+  // FIX 1-G: Update the primary device key for a user (e.g., after revoking the primary)
+  async updateUserPrimaryDevice(userPublicKey: string, newDevicePublicKey: string): Promise<void> {
+    try {
+      const normalizedUser = userPublicKey.toLowerCase().trim();
+      const normalizedDevice = newDevicePublicKey.toLowerCase().trim();
+      await db.update(users)
+        .set({ devicePublicKey: normalizedDevice, updatedAt: new Date() })
+        .where(eq(users.publicKey, normalizedUser));
+    } catch (error) {
+      if (isDev) console.error('Error updating user primary device:', error);
       throw error;
     }
   }
