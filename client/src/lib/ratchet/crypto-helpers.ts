@@ -1,3 +1,6 @@
+// TODO: Migrate byte-encoding helpers to shared client/src/lib/bytes.ts
+// Blocked on: bundler requires .js extensions in ratchet module imports
+// Tracked: CipherLink security debt — byte helper consolidation
 import { x25519, ed25519 } from '@noble/curves/ed25519.js';
 
 export function bytesToBase64(bytes: Uint8Array): string {

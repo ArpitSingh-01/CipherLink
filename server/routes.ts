@@ -13,11 +13,18 @@ import { lt } from "drizzle-orm";
 
 const isDev = process.env.NODE_ENV !== 'production';
 
-/** Guarded dev-only error logger — never throws, never leaks in production. */
+/** Guarded error logger — emits error.message in prod, full error in dev. */
 function devLog(label: string, error: unknown): void {
-  if (isDev) {
-    try { console.error(label, error); } catch { /* ignore logging errors */ }
-  }
+  try {
+    if (isDev) {
+      console.error(label, error);
+    } else {
+      // FIX 5-B: In production, write only the error message to stderr.
+      // Never leak full stack traces or internal state to centralized logs.
+      const msg = error instanceof Error ? error.message : String(error);
+      console.error(`[ERROR] ${label} ${msg}`);
+    }
+  } catch { /* ignore logging errors */ }
 }
 
 // Strict rate limiter for sensitive endpoints

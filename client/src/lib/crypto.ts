@@ -245,15 +245,30 @@ export function generateEd25519KeyPair(): { privateKey: string; publicKey: strin
   };
 }
 
-// Get a human-readable device name
+// Get a human-readable device name with browser detection and random suffix
 export function getDeviceName(): string {
   const userAgent = navigator.userAgent;
-  if (/android/i.test(userAgent)) return "Android Device";
-  if (/iPad|iPhone|iPod/.test(userAgent)) return "iOS Device";
-  if (/Windows/i.test(userAgent)) return "Windows PC";
-  if (/Mac/i.test(userAgent)) return "MacBook / iMac";
-  if (/Linux/i.test(userAgent)) return "Linux System";
-  return "Web Browser";
+  let platform = "Web Browser";
+  if (/android/i.test(userAgent)) platform = "Android";
+  else if (/iPad|iPhone|iPod/.test(userAgent)) platform = "iOS";
+  else if (/Windows/i.test(userAgent)) platform = "Windows";
+  else if (/Mac/i.test(userAgent)) platform = "Mac";
+  else if (/Linux/i.test(userAgent)) platform = "Linux";
+
+  // FIX 5-E: Detect browser for more descriptive names
+  let browser = "";
+  if (/Edg\//i.test(userAgent)) browser = "Edge";
+  else if (/Chrome\//i.test(userAgent)) browser = "Chrome";
+  else if (/Firefox\//i.test(userAgent)) browser = "Firefox";
+  else if (/Safari\//i.test(userAgent) && !/Chrome/i.test(userAgent)) browser = "Safari";
+
+  // Random 4-char suffix to differentiate multiple devices of same type
+  const suffix = Array.from(crypto.getRandomValues(new Uint8Array(2)))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
+
+  const parts = [platform, browser, suffix].filter(Boolean);
+  return parts.join(' ');
 }
 
 // Restore identity from recovery phrase

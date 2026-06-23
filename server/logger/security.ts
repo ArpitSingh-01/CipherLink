@@ -29,9 +29,13 @@ export function logSecurityEvent(event: Omit<SecurityEvent, 'timestamp'>) {
   if (process.env.NODE_ENV !== 'production') {
     console.warn('[SECURITY]', JSON.stringify(fullEvent));
   } else {
-    // In production, send to external logging service
-    // Example: winston, datadog, cloudwatch, etc.
-    console.log(JSON.stringify(fullEvent));
+    // FIX 5-A: In production, emit ONLY type + severity — no IP, UA, or key material.
+    // Centralized logging services must never ingest identity-correlated data.
+    console.log(JSON.stringify({
+      type: fullEvent.type,
+      severity: shouldAlert(fullEvent.type, 1) ? 'high' : 'info',
+      timestamp: fullEvent.timestamp,
+    }));
   }
   
   // Track events for alerting
