@@ -443,7 +443,9 @@ export async function dhRatchet(session: SessionState, receivedRatchetKey: Uint8
   secureClear(session.rootKey);
   secureClear(session.ratchetPrivateKey);
 
-  session.previousChainLength = session.recvMessageNumber;
+  // FIX 3-A: previousChainLength = number of messages sent in the CURRENT send chain,
+  // NOT the receive chain. Using recvMessageNumber here corrupts skipped-message recovery.
+  session.previousChainLength = session.sendMessageNumber;
   session.sendMessageNumber = 0;
   session.recvMessageNumber = 0;
   session.remoteRatchetPublicKey = receivedRatchetKey;

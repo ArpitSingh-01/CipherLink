@@ -162,20 +162,19 @@ export function getSessionOnlyMode(): boolean {
 
 /**
  * Zeroize all in-memory key material. Called on logout and beforeunload.
- * Note: JS GC is non-deterministic; this is best-effort but materially
- * reduces the window during which keys are recoverable from RAM.
+ *
+ * IMPORTANT (FIX 3-B): JavaScript strings are IMMUTABLE — we cannot truly overwrite
+ * sessionIdentity.privateKey in-place. The TextEncoder().encode() trick only zeros
+ * a COPY of the string bytes. The original string remains in the JS heap until GC
+ * collects it. This is a known limitation of JS-based cryptographic applications.
+ *
+ * Mitigation: nullify all references immediately so the GC can collect sooner.
+ * The window during which key material is recoverable from RAM is reduced but
+ * not eliminated. For stronger guarantees, use WebAssembly memory or a hardware
+ * security module.
  */
 export function clearSessionMemory(): void {
-  // Wipe the private key bytes if we have them in memory
-  if (sessionIdentity) {
-    try {
-      // Overwrite the privateKey string char-codes with zeros — best effort
-      const encoder = new TextEncoder();
-      const keyBuf = encoder.encode(sessionIdentity.privateKey);
-      keyBuf.fill(0);
-    } catch { /* best-effort */ }
-    sessionIdentity = null;
-  }
+  sessionIdentity = null;
   sessionRatchetStore.clear();
   for (const key of Object.keys(sessionMessageStore)) {
     delete sessionMessageStore[key];
@@ -410,22 +409,23 @@ export async function saveSentMessage(
     return;
   }
 
-  // RT-02: Encrypt plaintext before persisting to IDB.
-  // An IDB dump must not yield readable message content.
-  let encryptedPayload: string = plaintext; // default: fallback for session-only mode
-  if (sessionIdentity) {
-    const enc = await encryptWithSecret(
-      plaintext,
-      hexToBytes(sessionIdentity.privateKey),
-      'CipherLink-SentMsg-v1'
-    );
-    encryptedPayload = JSON.stringify(enc);
+  // FIX 3-D: Fail closed — if no sessionIdentity is available, refuse to store
+  // rather than falling back to plaintext. An IDB dump must never yield readable content.
+  if (!sessionIdentity) {
+    throw new Error('Cannot persist message: identity not unlocked');
   }
+
+  const enc = await encryptWithSecret(
+    plaintext,
+    hexToBytes(sessionIdentity.privateKey),
+    'CipherLink-SentMsg-v1'
+  );
+  const encryptedPayload = JSON.stringify(enc);
 
   const database = await getDB();
   await database.put('sentMessages', {
     id,
-    plaintext: encryptedPayload, // stored as encrypted JSON (or raw in session-only)
+    plaintext: encryptedPayload, // stored as encrypted JSON
     friendPublicKey,
     createdAt: Date.now(),
     expiresAt,
@@ -561,18 +561,24 @@ export async function updateFriendVerification(
  * Call this before allowing a message to be sent to a verified contact.
  */
 export async function detectIdentityKeyChange(publicKey: string): Promise<boolean> {
-  const friend = isSessionOnlyMode
-    ? sessionFriendStore.get(publicKey)
-    : await (await getDB()).get('friends', publicKey);
+  try {
+    const friend = isSessionOnlyMode
+      ? sessionFriendStore.get(publicKey)
+      : await (await getDB()).get('friends', publicKey);
 
-  if (!friend || !friend.verified || !friend.verifiedFingerprint) return false;
+    if (!friend || !friend.verified || !friend.verifiedFingerprint) return false;
 
-  const currentFingerprint = await fingerprintIdentityKey(hexToBytes(publicKey));
-  if (currentFingerprint === friend.verifiedFingerprint) return false;
+    const currentFingerprint = await fingerprintIdentityKey(hexToBytes(publicKey));
+    if (currentFingerprint === friend.verifiedFingerprint) return false;
 
-  // Key has changed — revoke verification and store new (unverified) fingerprint
-  await updateFriendVerification(publicKey, false);
-  return true;
+    // Key has changed — revoke verification and store new (unverified) fingerprint
+    await updateFriendVerification(publicKey, false);
+    return true;
+  } catch {
+    // FIX 3-E: Fail secure — if we can't verify, assume the key HAS changed
+    // to force re-verification rather than silently allowing a compromised session
+    return true;
+  }
 }
 
 export async function deleteFriend(publicKey: string): Promise<void> {
@@ -748,6 +754,17 @@ export async function clearAllData(): Promise<void> {
   await database.clear('settings');
   await database.clear('sentMessages');
   await database.clear('ratchetSessions');
+  // FIX 3-C: Clear device identity and crypto key — previously leaked on logout
+  await database.clear('deviceIdentity');
+  await database.clear('deviceCryptoKey');
+
+  // FIX 3-C: Clear CipherLink-related localStorage keys
+  try {
+    localStorage.removeItem('cipherlink-session-crypto-version');
+    localStorage.removeItem('cipherlink_cleanup_lock');
+    localStorage.removeItem('cipherlink-pin-attempts');
+    localStorage.removeItem('cipherlink-pin-lockout');
+  } catch { /* localStorage may be unavailable in some contexts */ }
 }
 
 // ==================== SESSION-ONLY BEFOREUNLOAD (SEC-07 / HARDENED) ====================

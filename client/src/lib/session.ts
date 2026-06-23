@@ -130,9 +130,20 @@ export async function decryptRatchet(
   session: SessionState,
   encryptedData: any
 ): Promise<string> {
-  const dec = await arDecrypt(session, encryptedData);
-  const sessionId = getSessionId(session.localDevicePublicKey, session.remoteDevicePublicKey);
-  await saveRatchetSession(sessionId, serializeSessionState(session));
-  return new TextDecoder().decode(dec);
+  // FIX 3-F: Snapshot session state before mutation — if decryption fails,
+  // the ratchet state (chain keys, counters) may have been partially advanced.
+  // Restoring the snapshot prevents permanent session corruption.
+  const snapshot = serializeSessionState(session);
+  try {
+    const dec = await arDecrypt(session, encryptedData);
+    const sessionId = getSessionId(session.localDevicePublicKey, session.remoteDevicePublicKey);
+    await saveRatchetSession(sessionId, serializeSessionState(session));
+    return new TextDecoder().decode(dec);
+  } catch (err) {
+    // Restore session state from snapshot on failure
+    const restored = deserializeSessionState(snapshot);
+    Object.assign(session, restored);
+    throw err;
+  }
 }
 
