@@ -1185,7 +1185,7 @@ export function ChatPage() {
     return () => clearInterval(syncFriendsInterval);
   }, [setLocation]);
 
-  // SEC-22: Cryptographically Correct Double Ratchet Persistence Hooks
+  // SEC-22: Session crypto version cleanup on identity load
   useEffect(() => {
     if (!state.identity) return;
 
@@ -1193,23 +1193,8 @@ export function ChatPage() {
     // This is essential for Vite HMR where the IDB upgrade callback doesn't re-fire.
     ensureSessionCryptoVersion().catch(e => console.warn('[CipherLink] ensureSessionCryptoVersion failed:', e));
 
-    setPersistentHooks({
-      onIdentityObserved: async (sessionId: string, newFp: string) => {
-        const database = await getDB();
-        const stored = await database.get('settings', `fingerprint:${sessionId}`);
-
-        if (typeof stored === 'string' && stored !== newFp) {
-          // MITM detected or device reset
-          console.warn(`[SEC] Identity mismatch for session ${sessionId}: expected ${stored}, got ${newFp}`);
-          setSafetyWarning({ sessionId, oldFp: stored, newFp });
-          return false; // Block initialization
-        }
-
-        await database.put('settings', newFp, `fingerprint:${sessionId}`);
-        return true;
-      },
-      onRatchetKeyObserved: async () => true // Allow automatic sub-key rotation
-    });
+    // BUG-8 FIX: setPersistentHooks moved to App.tsx module level — no longer called here.
+    // The TOFU hooks are now registered before any component renders.
   }, [state.identity]);
 
   const handlePinUnlock = async () => {
@@ -1356,13 +1341,16 @@ export function ChatPage() {
               const localDevicePub = hexToBytes(deviceIdentity.publicKey);
               const peerDeviceHex = senderDevicePublicKey || msg.senderPublicKey;
               const peerPubForSession = hexToBytes(peerDeviceHex);
+              // BUG-1 FIX: Use remote IDENTITY key (X25519) for session lookup, NOT device key (Ed25519).
+              // msg.senderPublicKey is the X25519 identity key — consistent with initSession.
+              const peerIdentityForSession = hexToBytes(msg.senderPublicKey);
 
-              let session = await loadSession(hexToBytes(state.identity!.publicKey), peerPubForSession);
+              let session = await loadSession(hexToBytes(state.identity!.publicKey), peerIdentityForSession);
               console.debug('[Ratchet] loadSession result:', {
                 found: !!session,
                 isInitiator: session?.isInitiator,
                 localPub: state.identity!.publicKey.slice(0, 12),
-                peerPub: peerDeviceHex.slice(0, 12),
+                peerPub: msg.senderPublicKey.slice(0, 12),
               });
 
               if (!session && ephemeralPublicKey && ephemeralPublicKey !== '00'.repeat(32)) {
@@ -1644,7 +1632,11 @@ export function ChatPage() {
       for (const device of allDevicesToEncrypt) {
         const devicePubBytes = hexToBytes(device.devicePublicKey);
 
-        let session = await loadSession(localIdentityPub, devicePubBytes);
+        // BUG-1 FIX: Use remote IDENTITY key (X25519) for session lookup, NOT device key (Ed25519).
+        // Sessions are keyed by sort([localIdentityPub, remoteIdentityPub]) — both X25519.
+        const isFriendDevice = friendDevices.some((fd: any) => fd.devicePublicKey === device.devicePublicKey);
+        const peerIdentityForLookup = isFriendDevice ? remoteIdentityPub : localIdentityPub;
+        let session = await loadSession(localIdentityPub, peerIdentityForLookup);
         let currentEphemeral: string | undefined = undefined;
 
         if (!session) {

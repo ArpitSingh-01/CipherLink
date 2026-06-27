@@ -81,8 +81,10 @@ export interface IStorage {
   getDevices(userPublicKey: string): Promise<Device[]>;
   getDeviceByPublicKey(devicePublicKey: string): Promise<Device | undefined>;
 
-  // User lookup by public key (alias for getUser)
-  getUserByPublicKey(publicKey: string): Promise<User | undefined>;
+  // BUG-4 FIX: Batch display name lookup (replaces N+1 individual getUser calls)
+  getUsersDisplayNames(publicKeys: string[]): Promise<Map<string, string | null>>;
+
+  // BUG-10 FIX: getUserByPublicKey removed — use getUser() instead
 
   // Primary device promotion (FIX 1-G)
   updateUserPrimaryDevice(userPublicKey: string, newDevicePublicKey: string): Promise<void>;
@@ -581,9 +583,16 @@ export class MemStorage implements IStorage {
     return this.devices.get(normalizedKey);
   }
 
-  // FIX 1-G: Alias for getUser — keeps the interface consistent with route handler expectations
-  async getUserByPublicKey(publicKey: string): Promise<User | undefined> {
-    return this.getUser(publicKey);
+  // BUG-10 FIX: getUserByPublicKey removed — use getUser() instead
+
+  // BUG-4 FIX: Batch display name lookup
+  async getUsersDisplayNames(publicKeys: string[]): Promise<Map<string, string | null>> {
+    const result = new Map<string, string | null>();
+    for (const key of publicKeys) {
+      const user = await this.getUser(key);
+      result.set(key.toLowerCase().trim(), user?.displayName ?? null);
+    }
+    return result;
   }
 
   // FIX 1-G: Update the primary device key for a user (e.g., after revoking the primary)

@@ -66,8 +66,8 @@ export async function initSession(
         remoteIdentityPub,                // SPKb     — MUST be X25519; use IKb (SPKb=IKb)
         null,                             // preKeySignature — skipped (SPKb=IKb is self-evident)
         null,                             // remoteIdentitySignPub — no separate Ed25519 check here
-        localIdentityKeyPair.publicKey,   // localDevicePublicKey (session storage key)
-        remoteDevicePublicKey,            // remoteDevicePublicKey (session storage key)
+        localIdentityKeyPair.publicKey,   // localDevicePublicKey (session storage key = X25519 identity)
+        remoteIdentityPub,                // remoteDevicePublicKey (session storage key = remote X25519 identity) — BUG-1 FIX
         undefined,                        // senderEphemeralPub — initiator generates, does not receive
         true                              // explicitIsInitiator — we are the initiator
       );
@@ -90,16 +90,16 @@ export async function initSession(
         localIdentityKeyPair.publicKey,   // remotePreKey = IKb_pub (local key) → preKeyForHash = IKb ✓
         null,                             // preKeySignature — skipped
         null,                             // remoteIdentitySignPub — no separate Ed25519 check
-        localIdentityKeyPair.publicKey,   // localDevicePublicKey (session storage key)
-        remoteDevicePublicKey,            // remoteDevicePublicKey (session storage key)
+        localIdentityKeyPair.publicKey,   // localDevicePublicKey (session storage key = X25519 identity)
+        remoteIdentityPub,                // remoteDevicePublicKey (session storage key = remote X25519 identity) — BUG-1 FIX
         senderEphemeralPub,               // EKa_pub from the initiator's payload
         false                             // explicitIsInitiator=false — we are the RESPONDER
       );
     }
 
-    // Session is keyed by [localIdentityPub, remoteDeviceKey] (sorted).
-    // loadSession callers must use the same pair.
-    const sessionId = getSessionId(localIdentityKeyPair.publicKey, remoteDevicePublicKey);
+    // BUG-1 FIX: Session is keyed by [localIdentityPub, remoteIdentityPub] (both X25519, sorted).
+    // This ensures consistent session IDs across initiator and responder roles.
+    const sessionId = getSessionId(localIdentityKeyPair.publicKey, remoteIdentityPub);
     await saveRatchetSession(sessionId, serializeSessionState(session));
     return { session, ephemeralPublicKey: ephemeralPair?.publicKey };
   } finally {
@@ -128,21 +128,23 @@ export async function encryptRatchet(
 
 export async function decryptRatchet(
   session: SessionState,
-  encryptedData: any
+  encryptedData: EncryptedMessage   // BUG-14 FIX: typed, not `any`
 ): Promise<string> {
   // FIX 3-F: Snapshot session state before mutation — if decryption fails,
   // the ratchet state (chain keys, counters) may have been partially advanced.
   // Restoring the snapshot prevents permanent session corruption.
+  const sessionId = getSessionId(session.localDevicePublicKey, session.remoteDevicePublicKey);
   const snapshot = serializeSessionState(session);
   try {
     const dec = await arDecrypt(session, encryptedData);
-    const sessionId = getSessionId(session.localDevicePublicKey, session.remoteDevicePublicKey);
     await saveRatchetSession(sessionId, serializeSessionState(session));
     return new TextDecoder().decode(dec);
   } catch (err) {
-    // Restore session state from snapshot on failure
+    // Restore in-memory state from snapshot
     const restored = deserializeSessionState(snapshot);
     Object.assign(session, restored);
+    // BUG-2 FIX: Also write snapshot back to IDB — ensures IDB matches in-memory after error
+    try { await saveRatchetSession(sessionId, snapshot); } catch { /* non-fatal */ }
     throw err;
   }
 }

@@ -12,12 +12,16 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-// These values are public and safe to embed in client code.
-// The anon key is a publishable key with no privileged access.
-const SUPABASE_URL = 'https://zhkdhkefmvaitkvbqedx.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpoa2Roa2VmbXZhaXRrdmJxZWR4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQzMzk5MzcsImV4cCI6MjA3OTkxNTkzN30.LmvU3Pfvj3MjPLdyL1BBLNAYv10jsNKPSEOJ36I49hg';
+// BUG-11 FIX: Use environment variables instead of hardcoded values.
+// These are set in .env (local dev) or deployment environment (production).
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  console.warn('[CipherLink] VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY must be set in .env — realtime notifications disabled');
+}
+
+export const supabase = createClient(SUPABASE_URL || '', SUPABASE_ANON_KEY || '', {
   // We only need Realtime — disable unused features to minimize overhead
   auth: {
     persistSession: false,

@@ -1,4 +1,5 @@
 import type { Express } from "express";
+import { hexToBytes } from "./utils/bytes";
 import type { Server } from "http";
 import rateLimit from "express-rate-limit";
 import { storage } from "./storage";
@@ -57,7 +58,7 @@ const messageLimiter = rateLimit({
 
 // Validation schemas
 const publicKeySchema = z.string().regex(/^[0-9a-f]{64}$/i, "Invalid public key format");
-const friendCodeSchema = z.string().regex(/^[A-Z2-9]{8}$/, "Invalid friend code format (exactly 8 chars)");
+const friendCodeSchema = z.string().regex(/^[A-HJ-NP-Z2-9]{8}$/, "Invalid friend code format (exactly 8 chars)"); // BUG-5 FIX: excludes I, L, O (confusable chars)
 // friendName removed — personal relationship metadata must only be stored locally (FIX 5)
 const ciphertextSchema = z.string().max(100000, "Message too large"); // 100KB limit
 const nonceSchema = z.string().regex(/^[0-9a-f]{20,48}$/i, "Invalid nonce format"); // Support 20 (test dummy), 24 (AES-GCM) and 48 (TweetNaCl) hex chars
@@ -130,7 +131,7 @@ export async function registerRoutes(
   // ==================== USERS ====================
 
   // Register a new user (just their public key)
-    app.post("/api/users", strictLimiter, globalRegistrationLimiter, async (req, res) => {
+  app.post("/api/users", strictLimiter, globalRegistrationLimiter, async (req, res) => {
     try {
       const { publicKey, devicePublicKey, identitySignature, displayName } = req.body;
 
@@ -219,9 +220,7 @@ export async function registerRoutes(
 
       const devices = await storage.getDevices(userPublicKey);
       
-      if (process.env.NODE_ENV !== 'production') {
-        console.log(`[Devices] Found ${devices.length} devices for user ${userPublicKey.substring(0, 8)}...`);
-      }
+      // BUG-15 FIX: Removed dev-only console.log — unnecessary debug output
 
       // Only return non-revoked devices and ensure property names match frontend expectations
       const activeDevices = devices
@@ -350,9 +349,9 @@ export async function registerRoutes(
       }
 
       try {
-        const sigBytes = new Uint8Array(identitySignature.match(/.{2}/g)!.map((b: string) => parseInt(b, 16)));
+        const sigBytes = hexToBytes(identitySignature);
         const msgBytes = new TextEncoder().encode(devicePublicKey);
-        const signingKeyBytes = new Uint8Array(signingKey.match(/.{2}/g)!.map((b: string) => parseInt(b, 16)));
+        const signingKeyBytes = hexToBytes(signingKey);
         if (!ed25519.verify(sigBytes, msgBytes, signingKeyBytes)) {
             logSecurityEvent({
               type: 'auth_failure',
@@ -429,7 +428,7 @@ export async function registerRoutes(
       await storage.revokeDevice(devicePublicKey);
 
       // FIX 1-G: After revoking, promote a new primary if needed
-      const updatedUser = await storage.getUserByPublicKey(req.authPublicKey!);
+      const updatedUser = await storage.getUser(req.authPublicKey!); // BUG-10 FIX: use canonical getUser
       if (updatedUser && updatedUser.devicePublicKey === normalizedDeviceKey) {
         const remainingDevices = await storage.getDevices(req.authPublicKey!);
         const newPrimary = remainingDevices.find(
@@ -584,9 +583,9 @@ export async function registerRoutes(
 
       // Verify device signed the challenge with its own key (proves key ownership)
       const { ed25519 } = await import('@noble/curves/ed25519.js');
-      const sigBytes = new Uint8Array(signature.match(/.{2}/g)!.map((b: string) => parseInt(b, 16)));
+      const sigBytes = hexToBytes(signature);
       const challengeBytes = new TextEncoder().encode(challenge);
-      const deviceKeyBytes = new Uint8Array(devicePublicKey.match(/.{2}/g)!.map((b: string) => parseInt(b, 16)));
+      const deviceKeyBytes = hexToBytes(devicePublicKey);
 
       const isValid = ed25519.verify(sigBytes, challengeBytes, deviceKeyBytes);
       if (!isValid) {
@@ -600,14 +599,14 @@ export async function registerRoutes(
       }
       
       try {
-        const idSigBytes = new Uint8Array(identitySignature.match(/.{2}/g)!.map((b: string) => parseInt(b, 16)));
+        const idSigBytes = hexToBytes(identitySignature);
         const msgBytes = new TextEncoder().encode(devicePublicKey);
         // SEC-FIX: Use the user's primary device public key (Ed25519 identity key) for verification.
         const dbUser = await storage.getUser(userPublicKey);
         if (!dbUser || !dbUser.devicePublicKey) {
             return res.status(401).json({ error: "User identity key missing" });
         }
-        const identityKeyBytes = new Uint8Array(dbUser.devicePublicKey.match(/.{2}/g)!.map((b: string) => parseInt(b, 16)));
+        const identityKeyBytes = hexToBytes(dbUser.devicePublicKey);
         if (!ed25519.verify(idSigBytes, msgBytes, identityKeyBytes)) {
             return res.status(401).json({ error: "Forged identity signature" });
         }
@@ -703,9 +702,9 @@ export async function registerRoutes(
 
       try {
         const { ed25519 } = await import('@noble/curves/ed25519.js');
-        const sigBytes = new Uint8Array(linkSignature.match(/.{2}/g)!.map(b => parseInt(b, 16)));
+        const sigBytes = hexToBytes(linkSignature);
         const msgBytes = new TextEncoder().encode(devicePublicKey.toLowerCase().trim());
-        const pubBytes = new Uint8Array(devicePublicKey.toLowerCase().trim().match(/.{2}/g)!.map(b => parseInt(b, 16)));
+        const pubBytes = hexToBytes(devicePublicKey.toLowerCase().trim());
         const isValid = ed25519.verify(sigBytes, msgBytes, pubBytes);
         if (!isValid) {
           return res.status(401).json({ error: "Invalid device proof" });
@@ -837,7 +836,7 @@ export async function registerRoutes(
       const identityPublicKey = req.authPublicKey!;
 
       if (!code) {
-        const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+        const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // BUG-5 FIX: matches client charset (no I/L/O confusable chars)
         code = "";
         // MED-B FIX: Use crypto.getRandomValues() for friend code generation.
         // Math.random() has limited entropy (~2^52) making codes predictable.
@@ -1008,21 +1007,44 @@ export async function registerRoutes(
 
       const friends = await storage.getFriends(publicKey);
 
-      // Enrich friends with their display names from the users table
-      const enrichedFriends = await Promise.all(
-        friends.map(async (friend) => {
-          const friendUser = await storage.getUser(friend.friendPublicKey);
-          return {
-            ...friend,
-            friendDisplayName: friendUser?.displayName || null,
-          };
-        })
-      );
+      // BUG-4 FIX: Batch query instead of N+1 individual lookups
+      const friendKeys = friends.map(f => f.friendPublicKey);
+      const displayNames = await storage.getUsersDisplayNames(friendKeys);
+
+      const enrichedFriends = friends.map(friend => ({
+        ...friend,
+        friendDisplayName: displayNames.get(friend.friendPublicKey.toLowerCase().trim()) ?? null,
+      }));
 
       res.json(enrichedFriends);
     } catch (error) {
       devLog('Error getting friends:', error);
       res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  // ==================== TYPING INDICATORS ====================
+
+  // BUG-9 FIX: Missing typing indicator route
+  app.post('/api/typing', requireAuth, async (req, res) => {
+    try {
+      const { receiverPublicKey } = req.body;
+      const senderPublicKey = req.authPublicKey!;
+
+      if (!receiverPublicKey || !validatePublicKey(receiverPublicKey)) {
+        return res.status(400).json({ error: 'Invalid receiver public key' });
+      }
+
+      // Only notify accepted friends — prevents enumeration
+      const canNotify = await storage.areMutualFriends(senderPublicKey, receiverPublicKey);
+      if (!canNotify) return res.json({ success: true }); // silent — don't reveal non-friend status
+
+      notifyFriendEvent(receiverPublicKey, 'typing');
+
+      res.json({ success: true });
+    } catch (error) {
+      devLog('Error sending typing indicator:', error);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 

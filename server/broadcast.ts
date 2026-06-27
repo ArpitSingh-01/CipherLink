@@ -19,9 +19,13 @@ import { log } from './log';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
+// BUG-12 FIX: Prefer service role key for server-to-server broadcast REST calls.
+// The anon key is a publishable client-side credential and may be rate-limited.
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const AUTH_KEY = SUPABASE_SERVICE_KEY || SUPABASE_ANON_KEY;
 
-// Validate at startup — these must be set
-if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+// Validate at startup — at minimum the anon key must be set
+if (!SUPABASE_URL || !AUTH_KEY) {
   console.warn('[broadcast] SUPABASE_URL or SUPABASE_ANON_KEY not set — realtime broadcast disabled');
 }
 
@@ -33,15 +37,15 @@ async function broadcastSignal(
   channelTopic: string,
   payload: Record<string, unknown>
 ): Promise<void> {
-  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return;
+  if (!SUPABASE_URL || !AUTH_KEY) return;
 
   try {
     const response = await fetch(`${SUPABASE_URL}/realtime/v1/api/broadcast`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'apikey': SUPABASE_ANON_KEY,
-        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        'apikey': AUTH_KEY,
+        'Authorization': `Bearer ${AUTH_KEY}`,
       },
       body: JSON.stringify({
         messages: [{
@@ -86,7 +90,7 @@ export function notifyNewMessage(receiverPublicKey: string, senderPublicKey: str
  */
 export function notifyFriendEvent(
   targetPublicKey: string,
-  eventType: 'friend_request' | 'friend_accepted'
+  eventType: 'friend_request' | 'friend_accepted' | 'typing' // BUG-9 FIX: added typing
 ): void {
   const normalizedKey = targetPublicKey.toLowerCase().trim();
   const channelTopic = `notifications:${normalizedKey}`;

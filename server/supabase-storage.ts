@@ -33,8 +33,9 @@ import {
 } from '@shared/schema';
 import { eq, and, or, lt, gt, asc, sql } from 'drizzle-orm';
 import type { IStorage } from './storage';
+import { logError } from './utils/log';
 
-const isDev = process.env.NODE_ENV !== 'production';
+// BUG-16 FIX: isDev removed — logError handles env detection internally
 
 export class SupabaseStorage implements IStorage {
   // In-memory typing indicators (ephemeral state)
@@ -52,7 +53,7 @@ export class SupabaseStorage implements IStorage {
 
       return result[0];
     } catch (error) {
-      if (isDev) console.error('Error getting user by public key:', error);
+      logError('getUser', error);
       throw error;
     }
   }
@@ -66,7 +67,7 @@ export class SupabaseStorage implements IStorage {
 
       return result[0];
     } catch (error) {
-      if (isDev) console.error('Error getting user by id:', error);
+      logError('getUserById', error);
       throw error;
     }
   }
@@ -94,7 +95,7 @@ export class SupabaseStorage implements IStorage {
 
       return result[0];
     } catch (error) {
-      if (isDev) console.error('Error creating user:', error);
+      logError('createUser', error);
       throw error;
     }
   }
@@ -110,7 +111,7 @@ export class SupabaseStorage implements IStorage {
         .set({ devicePublicKey: normalizedDevice, updatedAt: new Date() })
         .where(and(eq(users.publicKey, normalizedUser), sql`"device_public_key" IS NULL`));
     } catch (error) {
-      if (isDev) console.error('Error setting user device public key:', error);
+      logError('setUserDevicePublicKey', error);
       throw error;
     }
   }
@@ -136,7 +137,7 @@ export class SupabaseStorage implements IStorage {
 
       return result[0];
     } catch (error) {
-      if (isDev) console.error('Error creating friend code:', error);
+      logError('createFriendCode', error);
       throw error;
     }
   }
@@ -158,7 +159,7 @@ export class SupabaseStorage implements IStorage {
 
       return result[0];
     } catch (error) {
-      if (isDev) console.error('Error getting friend code:', error);
+      logError('getFriendCode', error);
       throw error;
     }
   }
@@ -172,7 +173,7 @@ export class SupabaseStorage implements IStorage {
         })
         .where(eq(friendCodes.code, code));
     } catch (error) {
-      if (isDev) console.error('Error marking friend code as used:', error);
+      logError('markFriendCodeUsed', error);
       throw error;
     }
   }
@@ -189,11 +190,11 @@ export class SupabaseStorage implements IStorage {
         )
         .returning({ id: friendCodes.id });
 
-      if (deleted.length > 0 && isDev) {
-        console.log(`Cleanup: Deleted ${deleted.length} expired/used friend codes`);
+            if (deleted.length > 0) {
+        logError('cleanupFriendCodes', 'Deleted ' + deleted.length + ' expired/used friend codes');
       }
     } catch (error) {
-      if (isDev) console.error('Error deleting expired friend codes:', error);
+      logError('deleteExpiredFriendCodes', error);
       throw error;
     }
   }
@@ -230,7 +231,7 @@ export class SupabaseStorage implements IStorage {
 
       return result[0];
     } catch (error) {
-      if (isDev) console.error('Error creating friend:', error);
+      logError('createFriend', error);
       throw error;
     }
   }
@@ -250,7 +251,7 @@ export class SupabaseStorage implements IStorage {
 
       return result;
     } catch (error) {
-      if (isDev) console.error('Error getting friends:', error);
+      logError('getFriends', error);
       throw error;
     }
   }
@@ -269,7 +270,7 @@ export class SupabaseStorage implements IStorage {
 
       return result;
     } catch (error) {
-      if (isDev) console.error('Error getting pending friend requests:', error);
+      logError('getPendingFriendRequests', error);
       throw error;
     }
   }
@@ -293,7 +294,7 @@ export class SupabaseStorage implements IStorage {
         .returning({ id: friends.id });
       return result.length > 0;
     } catch (error) {
-      if (isDev) console.error('Error accepting friend request:', error);
+      logError('acceptFriendRequest', error);
       throw error;
     }
   }
@@ -319,7 +320,7 @@ export class SupabaseStorage implements IStorage {
         .returning({ id: friends.id });
       return result.length > 0;
     } catch (error) {
-      if (isDev) console.error('Error declining friend request:', error);
+      logError('declineFriendRequest', error);
       throw error;
     }
   }
@@ -346,32 +347,29 @@ export class SupabaseStorage implements IStorage {
 
       return result.length > 0;
     } catch (error) {
-      if (isDev) console.error('Error checking friendship:', error);
+      logError('areFriends', error);
       throw error;
     }
   }
 
-  async areMutualFriends(publicKey1: string, publicKey2: string): Promise<boolean> {
+    async areMutualFriends(publicKey1: string, publicKey2: string): Promise<boolean> {
     try {
       const k1 = publicKey1.toLowerCase().trim();
       const k2 = publicKey2.toLowerCase().trim();
-      const result = await db
-        .select()
-        .from(friends)
-        .where(
-          and(
-            eq(friends.status, 'accepted'),
-            or(
-              and(eq(friends.userPublicKey, k1), eq(friends.friendPublicKey, k2)),
-              and(eq(friends.userPublicKey, k2), eq(friends.friendPublicKey, k1))
-            )
-          )
-        );
-      return result.length === 2;
+      // BUG-17 FIX: Parallel lightweight select queries checking each direction separately.
+      // This only fetches the ID column and limits to 1 row, avoiding loading full row payloads.
+      const [row1, row2] = await Promise.all([
+        db.select({ id: friends.id }).from(friends).where(
+          and(eq(friends.userPublicKey, k1), eq(friends.friendPublicKey, k2), eq(friends.status, 'accepted'))
+        ).limit(1),
+        db.select({ id: friends.id }).from(friends).where(
+          and(eq(friends.userPublicKey, k2), eq(friends.friendPublicKey, k1), eq(friends.status, 'accepted'))
+        ).limit(1)
+      ]);
+      return row1.length > 0 && row2.length > 0;
     } catch (error) {
-
-      if (isDev) console.error('Error checking mutual friendship:', error);
-      throw error;
+      logError('areMutualFriends', error);
+      return false; // BUG-3 FIX: Security gate — any failure denies the action (fail-closed)
     }
   }
 
@@ -478,7 +476,7 @@ export class SupabaseStorage implements IStorage {
           { code: 'DUPLICATE_MESSAGE' }
         );
       }
-      if (isDev) console.error('Error creating message:', error);
+      logError('createMessage', error);
       throw error;
     }
   }
@@ -501,7 +499,7 @@ export class SupabaseStorage implements IStorage {
 
       return result;
     } catch (error) {
-      if (isDev) console.error('Error getting messages:', error);
+      logError('getMessages', error);
       throw error;
     }
   }
@@ -525,7 +523,7 @@ export class SupabaseStorage implements IStorage {
 
       return result;
     } catch (error) {
-      if (isDev) console.error('Error getting all messages for user:', error);
+      logError('getAllMessages', error);
       throw error;
     }
   }
@@ -537,11 +535,11 @@ export class SupabaseStorage implements IStorage {
         .where(lt(messages.expiresAt, now))
         .returning({ id: messages.id });
 
-      if (deleted.length > 0 && isDev) {
-        console.log(`Cleanup: Deleted ${deleted.length} expired messages`);
+            if (deleted.length > 0) {
+        logError('cleanupMessages', 'Deleted ' + deleted.length + ' expired messages');
       }
     } catch (error) {
-      if (isDev) console.error('Error deleting expired messages:', error);
+      logError('deleteExpiredMessages', error);
       throw error;
     }
   }
@@ -551,7 +549,7 @@ export class SupabaseStorage implements IStorage {
       await db.delete(messages)
         .where(eq(messages.id, id));
     } catch (error) {
-      if (isDev) console.error('Error deleting message:', error);
+      logError('deleteMessage', error);
       throw error;
     }
   }
@@ -565,7 +563,7 @@ export class SupabaseStorage implements IStorage {
         })
         .where(eq(messages.id, messageId));
     } catch (error) {
-      if (isDev) console.error('Error marking message as read:', error);
+      logError('markMessageAsRead', error);
       throw error;
     }
   }
@@ -593,12 +591,10 @@ export class SupabaseStorage implements IStorage {
           }
         } catch (parseError) {
           // Corrupted JSON - reset to empty object
-          if (isDev) {
-            try {
-              console.error('Error parsing reactions JSON, resetting:', parseError);
-            } catch {
-              // Ignore logging errors
-            }
+                    try {
+            logError('parseReactions', parseError);
+          } catch {
+            // Ignore logging errors
           }
           reactions = {};
         }
@@ -613,12 +609,10 @@ export class SupabaseStorage implements IStorage {
         })
         .where(eq(messages.id, messageId));
     } catch (error) {
-      if (isDev) {
-        try {
-          console.error('Error adding reaction:', error);
-        } catch {
-          // Ignore logging errors
-        }
+            try {
+        logError('addReaction', error);
+      } catch {
+        // Ignore logging errors
       }
       throw error;
     }
@@ -647,12 +641,10 @@ export class SupabaseStorage implements IStorage {
           }
         } catch (parseError) {
           // Corrupted JSON - reset to empty object
-          if (isDev) {
-            try {
-              console.error('Error parsing reactions JSON, resetting:', parseError);
-            } catch {
-              // Ignore logging errors
-            }
+                    try {
+            logError('parseReactions', parseError);
+          } catch {
+            // Ignore logging errors
           }
           reactions = {};
         }
@@ -667,12 +659,10 @@ export class SupabaseStorage implements IStorage {
         })
         .where(eq(messages.id, messageId));
     } catch (error) {
-      if (isDev) {
-        try {
-          console.error('Error removing reaction:', error);
-        } catch {
-          // Ignore logging errors
-        }
+            try {
+        logError('removeReaction', error);
+      } catch {
+        // Ignore logging errors
       }
       throw error;
     }
@@ -711,7 +701,7 @@ export class SupabaseStorage implements IStorage {
 
       return result[0];
     } catch (error) {
-      if (isDev) console.error('Error blocking user:', error);
+      logError('blockUser', error);
       throw error;
     }
   }
@@ -728,7 +718,7 @@ export class SupabaseStorage implements IStorage {
           )
         );
     } catch (error) {
-      if (isDev) console.error('Error unblocking user:', error);
+      logError('unblockUser', error);
       throw error;
     }
   }
@@ -749,7 +739,7 @@ export class SupabaseStorage implements IStorage {
 
       return result.length > 0;
     } catch (error) {
-      if (isDev) console.error('Error checking if blocked:', error);
+      logError('isBlocked', error);
       throw error;
     }
   }
@@ -763,7 +753,7 @@ export class SupabaseStorage implements IStorage {
 
       return result.map(r => r.blockedPublicKey);
     } catch (error) {
-      if (isDev) console.error('Error getting blocked users:', error);
+      logError('getBlockedUsers', error);
       throw error;
     }
   }
@@ -831,7 +821,7 @@ export class SupabaseStorage implements IStorage {
       
       return result[0];
     } catch (error) {
-      if (isDev) console.error('Error registering device:', error);
+      logError('registerDevice', error);
       throw error;
     }
   }
@@ -842,7 +832,7 @@ export class SupabaseStorage implements IStorage {
         .set({ revoked: true })
         .where(eq(devices.devicePublicKey, devicePublicKey));
     } catch (error) {
-      if (isDev) console.error('Error revoking device:', error);
+      logError('revokeDevice', error);
       throw error;
     }
   }
@@ -857,7 +847,7 @@ export class SupabaseStorage implements IStorage {
       
       return result;
     } catch (error) {
-      if (isDev) console.error('Error getting devices:', error);
+      logError('getDevices', error);
       throw error;
     }
   }
@@ -872,14 +862,31 @@ export class SupabaseStorage implements IStorage {
       
       return result[0];
     } catch (error) {
-      if (isDev) console.error('Error getting device by public key:', error);
+      logError('getDeviceByPublicKey', error);
       throw error;
     }
   }
 
   // FIX 1-G: Alias for getUser â€” consistent interface
-  async getUserByPublicKey(publicKey: string): Promise<User | undefined> {
-    return this.getUser(publicKey);
+    // BUG-10 FIX: getUserByPublicKey removed — use getUser() instead
+
+  // BUG-4 FIX: Batch display name lookup (single query instead of N+1)
+  async getUsersDisplayNames(publicKeys: string[]): Promise<Map<string, string | null>> {
+    if (publicKeys.length === 0) return new Map();
+    try {
+      const normalizedKeys = publicKeys.map(k => k.toLowerCase().trim());
+      const result = await db.select({ publicKey: users.publicKey, displayName: users.displayName })
+        .from(users)
+        .where(sql`${users.publicKey} IN (${sql.join(normalizedKeys.map(k => sql`${k}`), sql`, `)})`);
+      const map = new Map<string, string | null>();
+      for (const row of result) {
+        map.set(row.publicKey, row.displayName ?? null);
+      }
+      return map;
+    } catch (error) {
+      logError('getUsersDisplayNames', error);
+      return new Map();
+    }
   }
 
   // FIX 1-G: Update the primary device key for a user (e.g., after revoking the primary)
@@ -891,7 +898,7 @@ export class SupabaseStorage implements IStorage {
         .set({ devicePublicKey: normalizedDevice, updatedAt: new Date() })
         .where(eq(users.publicKey, normalizedUser));
     } catch (error) {
-      if (isDev) console.error('Error updating user primary device:', error);
+      logError('updateUserPrimaryDevice', error);
       throw error;
     }
   }
@@ -977,7 +984,7 @@ export class SupabaseStorage implements IStorage {
           .where(eq(deviceChallenges.userPublicKey, userPublicKey));
       });
     } catch (error) {
-      if (isDev) console.error('Error rotating identity key:', error);
+      logError('rotateIdentityKey', error);
       throw error;
     }
   }
@@ -996,7 +1003,7 @@ export class SupabaseStorage implements IStorage {
       
       return result;
     } catch (error) {
-      if (isDev) console.error('Error getting identity key history:', error);
+      logError('getIdentityKeyHistory', error);
       throw error;
     }
   }
@@ -1024,7 +1031,7 @@ export class SupabaseStorage implements IStorage {
         .returning();
       return result[0];
     } catch (error) {
-      if (isDev) console.error('Error upserting prekey bundle:', error);
+      logError('upsertPrekeyBundle', error);
       throw error;
     }
   }
@@ -1044,7 +1051,7 @@ export class SupabaseStorage implements IStorage {
         .limit(1);
       return result[0];
     } catch (error) {
-      if (isDev) console.error('Error getting prekey bundle:', error);
+      logError('getPrekeyBundle', error);
       throw error;
     }
   }
@@ -1054,7 +1061,7 @@ export class SupabaseStorage implements IStorage {
       await db.delete(prekeyBundles)
         .where(lt(prekeyBundles.expiresAt, new Date()));
     } catch (error) {
-      if (isDev) console.error('Error deleting expired prekey bundles:', error);
+      logError('deleteExpiredPrekeyBundles', error);
       throw error;
     }
   }
@@ -1072,7 +1079,7 @@ export class SupabaseStorage implements IStorage {
         .returning();
       return result[0];
     } catch (error) {
-      if (isDev) console.error('Error creating device challenge:', error);
+      logError('createDeviceChallenge', error);
       throw error;
     }
   }
@@ -1095,7 +1102,7 @@ export class SupabaseStorage implements IStorage {
         .returning();
       return result[0];
     } catch (error) {
-      if (isDev) console.error('Error consuming device challenge:', error);
+      logError('consumeDeviceChallenge', error);
       throw error;
     }
   }
@@ -1126,7 +1133,7 @@ export class SupabaseStorage implements IStorage {
         .returning();
       return result[0];
     } catch (error) {
-      if (isDev) console.error('Error creating linking request:', error);
+      logError('createLinkingRequest', error);
       throw error;
     }
   }
@@ -1139,7 +1146,7 @@ export class SupabaseStorage implements IStorage {
         .limit(1);
       return result[0];
     } catch (error) {
-      if (isDev) console.error('Error getting linking request:', error);
+      logError('getLinkingRequest', error);
       throw error;
     }
   }
@@ -1152,7 +1159,7 @@ export class SupabaseStorage implements IStorage {
         .limit(1);
       return result[0];
     } catch (error) {
-      if (isDev) console.error('Error getting linking request by device:', error);
+      logError('getLinkingRequestByDevice', error);
       throw error;
     }
   }
@@ -1170,7 +1177,7 @@ export class SupabaseStorage implements IStorage {
           )
         );
     } catch (error) {
-      if (isDev) console.error('Error getting pending linking requests:', error);
+      logError('getPendingLinkingRequests', error);
       throw error;
     }
   }
@@ -1185,7 +1192,7 @@ export class SupabaseStorage implements IStorage {
         })
         .where(eq(linkingRequests.id, requestId));
     } catch (error) {
-      if (isDev) console.error('Error approving linking request:', error);
+      logError('approveLinkingRequest', error);
       throw error;
     }
   }
@@ -1196,7 +1203,7 @@ export class SupabaseStorage implements IStorage {
         .set({ status: 'rejected' })
         .where(eq(linkingRequests.id, requestId));
     } catch (error) {
-      if (isDev) console.error('Error rejecting linking request:', error);
+      logError('rejectLinkingRequest', error);
       throw error;
     }
   }
@@ -1207,7 +1214,7 @@ export class SupabaseStorage implements IStorage {
       await db.delete(linkingRequests)
         .where(lt(linkingRequests.expiresAt, now));
     } catch (error) {
-      if (isDev) console.error('Error deleting expired linking requests:', error);
+      logError('deleteExpiredLinkingRequests', error);
       throw error;
     }
   }

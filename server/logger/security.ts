@@ -63,10 +63,7 @@ function trackEventForAlerting(event: SecurityEvent) {
     sendAlert(event, events.length);
   }
   
-  // Cleanup old keys periodically
-  if (Math.random() < 0.01) { // 1% chance
-    cleanupOldEvents();
-  }
+  // BUG-6 FIX: Deterministic cleanup moved to module-level setInterval below
 }
 
 function shouldAlert(eventType: string, count: number): boolean {
@@ -116,3 +113,8 @@ function cleanupOldEvents() {
   // Apply updates
   keysToUpdate.forEach(([key, events]) => recentEvents.set(key, events));
 }
+
+// BUG-6 FIX: Deterministic cleanup — runs every 60 seconds.
+// Replaces the probabilistic Math.random() < 0.01 check that left stale entries
+// accumulating during low-traffic periods.
+setInterval(() => cleanupOldEvents(), 60_000);
