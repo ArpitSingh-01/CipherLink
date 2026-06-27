@@ -46,7 +46,7 @@ export interface IStorage {
   getPendingFriendRequests(publicKey: string): Promise<Friend[]>;
   acceptFriendRequest(userPublicKey: string, friendPublicKey: string): Promise<boolean>;
   declineFriendRequest(userPublicKey: string, friendPublicKey: string): Promise<boolean>;
-  areFriends(publicKey1: string, publicKey2: string): Promise<boolean>;
+  hasRelationship(publicKey1: string, publicKey2: string): Promise<boolean>;
   areMutualFriends(publicKey1: string, publicKey2: string): Promise<boolean>;
 
   // Atomic friend code redemption (FIX 7)
@@ -298,7 +298,7 @@ export class MemStorage implements IStorage {
     return true;
   }
 
-  async areFriends(publicKey1: string, publicKey2: string): Promise<boolean> {
+  async hasRelationship(publicKey1: string, publicKey2: string): Promise<boolean> {
     const k1 = publicKey1.toLowerCase().trim();
     const k2 = publicKey2.toLowerCase().trim();
     return Array.from(this.friends.values()).some(
@@ -334,7 +334,7 @@ export class MemStorage implements IStorage {
       throw new Error('Cannot add yourself');
     }
     // Check if already friends
-    const alreadyFriends = await this.areFriends(friendCode.identityPublicKey, redeemerPublicKey);
+    const alreadyFriends = await this.hasRelationship(friendCode.identityPublicKey, redeemerPublicKey);
     if (alreadyFriends) {
       throw new Error('Already friends');
     }

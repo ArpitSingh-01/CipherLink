@@ -35,7 +35,7 @@ import { eq, and, or, lt, gt, asc, sql } from 'drizzle-orm';
 import type { IStorage } from './storage';
 import { logError } from './utils/log';
 
-// BUG-16 FIX: isDev removed — logError handles env detection internally
+// BUG-16 FIX: isDev removed ï¿½ logError handles env detection internally
 
 export class SupabaseStorage implements IStorage {
   // In-memory typing indicators (ephemeral state)
@@ -325,7 +325,7 @@ export class SupabaseStorage implements IStorage {
     }
   }
 
-  async areFriends(publicKey1: string, publicKey2: string): Promise<boolean> {
+  async hasRelationship(publicKey1: string, publicKey2: string): Promise<boolean> {
     try {
       const k1 = publicKey1.toLowerCase().trim();
       const k2 = publicKey2.toLowerCase().trim();
@@ -347,7 +347,7 @@ export class SupabaseStorage implements IStorage {
 
       return result.length > 0;
     } catch (error) {
-      logError('areFriends', error);
+      logError('hasRelationship', error);
       throw error;
     }
   }
@@ -369,7 +369,7 @@ export class SupabaseStorage implements IStorage {
       return row1.length > 0 && row2.length > 0;
     } catch (error) {
       logError('areMutualFriends', error);
-      return false; // BUG-3 FIX: Security gate — any failure denies the action (fail-closed)
+      return false; // BUG-3 FIX: Security gate ï¿½ any failure denies the action (fail-closed)
     }
   }
 
@@ -868,7 +868,7 @@ export class SupabaseStorage implements IStorage {
   }
 
   // FIX 1-G: Alias for getUser â€” consistent interface
-    // BUG-10 FIX: getUserByPublicKey removed — use getUser() instead
+    // BUG-10 FIX: getUserByPublicKey removed ï¿½ use getUser() instead
 
   // BUG-4 FIX: Batch display name lookup (single query instead of N+1)
   async getUsersDisplayNames(publicKeys: string[]): Promise<Map<string, string | null>> {
