@@ -1,47 +1,19 @@
-// TODO: Migrate byte-encoding helpers to shared client/src/lib/bytes.ts
-// Blocked on: bundler requires .js extensions in ratchet module imports
-// Tracked: CipherLink security debt — byte helper consolidation
 import { x25519, ed25519 } from '@noble/curves/ed25519.js';
+import {
+  bytesToBase64,
+  base64ToBytes,
+  bytesToHex,
+  concat,
+  toArrayBuffer as toBuffer,
+} from '../bytes.js';
 
-export function bytesToBase64(bytes: Uint8Array): string {
-  let binary = '';
-  for (let i = 0; i < bytes.length; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  return btoa(binary);
-}
-
-export function base64ToBytes(base64: string): Uint8Array {
-  const binaryString = atob(base64);
-  const bytes = new Uint8Array(binaryString.length);
-  for (let i = 0; i < binaryString.length; i++) {
-    bytes[i] = binaryString.charCodeAt(i);
-  }
-  return bytes;
-}
-
-export function bytesToHex(bytes: Uint8Array): string {
-  let res = '';
-  for (let i = 0; i < bytes.length; i++) {
-    res += bytes[i].toString(16).padStart(2, '0');
-  }
-  return res;
-}
-
-export function concat(...arrays: Uint8Array[]): Uint8Array {
-  const totalLength = arrays.reduce((acc, a) => acc + a.length, 0);
-  const res = new Uint8Array(totalLength);
-  let offset = 0;
-  for (const a of arrays) {
-    res.set(a, offset);
-    offset += a.length;
-  }
-  return res;
-}
-
-export function toBuffer(arr: Uint8Array): ArrayBuffer {
-  return arr.buffer.slice(arr.byteOffset, arr.byteOffset + arr.byteLength) as ArrayBuffer;
-}
+export {
+  bytesToBase64,
+  base64ToBytes,
+  bytesToHex,
+  concat,
+  toBuffer,
+};
 
 // /X25519 from @noble/curves — raw 32-byte keys, no PKCS8 wrapping.
 // secureClear() on raw bytes actually zeros the private key material.
