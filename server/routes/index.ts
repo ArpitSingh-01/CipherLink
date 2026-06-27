@@ -1,3 +1,7 @@
+/**
+ * Route registry index.
+ * Wires all domain-specific router endpoints and exports the main registration function.
+ */
 import type { Express } from 'express';
 import type { Server } from 'http';
 import { registerUserRoutes } from './users';
