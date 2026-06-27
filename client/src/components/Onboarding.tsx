@@ -686,7 +686,6 @@ function LinkDeviceStep({ onBack, onComplete }: { onBack: () => void; onComplete
             toast({ title: "Identity Linked!", description: "Identity successfully transferred." });
             onComplete(identity);
           } catch (err) {
-            console.error("Link processing error:", err);
             toast({ title: "Verification Failed", description: "Could not cryptographically verify the linking payload.", variant: "destructive" });
           }
         }

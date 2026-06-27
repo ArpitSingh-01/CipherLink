@@ -35,7 +35,7 @@ export function DevicesDialog() {
                 setLinkingRequests(data);
             }
         } catch (e) {
-            console.error("Failed to fetch linking requests:", e);
+            // Ignore background check errors
         }
     };
 
@@ -51,7 +51,7 @@ export function DevicesDialog() {
             }
             await fetchLinkingRequests();
         } catch (error) {
-            console.error('Failed to fetch devices:', error);
+            // Handled
         } finally {
             setLoading(false);
         }

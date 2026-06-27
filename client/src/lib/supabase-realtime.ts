@@ -20,7 +20,9 @@ const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 const hasCredentials = !!SUPABASE_URL && !!SUPABASE_ANON_KEY;
 
 if (!hasCredentials) {
-  console.warn('[CipherLink] VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY must be set in .env — realtime notifications disabled');
+  if (import.meta.env.DEV) {
+    console.warn('[CipherLink] VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY must be set in .env — realtime notifications disabled');
+  }
 }
 
 export const supabase = hasCredentials

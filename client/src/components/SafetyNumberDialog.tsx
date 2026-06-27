@@ -65,7 +65,6 @@ export function SafetyNumberDialog({
         });
         setQrDataUrl(dataUrl);
       } catch (err) {
-        console.error('Safety number computation failed:', err);
         toast({
           title: 'Error',
           description: 'Could not compute safety number',

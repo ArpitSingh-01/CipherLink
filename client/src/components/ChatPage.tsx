@@ -146,7 +146,7 @@ function VerificationDialog({
     if (open) {
       computeSafetyNumber(hexToBytes(ownPublicKey), hexToBytes(friend.publicKey))
         .then(setSafetyData)
-        .catch(err => { if (import.meta.env.DEV) console.error("Failed to compute safety number", err); });
+        .catch(() => {});
     }
   }, [open, ownPublicKey, friend.publicKey]);
 
@@ -364,7 +364,7 @@ export function ChatPage() {
 
     // Wipe any stale ratchet sessions from old crypto formats on every identity load.
     // This is essential for Vite HMR where the IDB upgrade callback doesn't re-fire.
-    ensureSessionCryptoVersion().catch(e => { if (import.meta.env.DEV) console.warn('[CipherLink] ensureSessionCryptoVersion failed:', e); });
+    ensureSessionCryptoVersion().catch(() => {});
   }, [state.identity]);
 
   const handlePinUnlock = async (enteredPin: string) => {
@@ -488,19 +488,15 @@ export function ChatPage() {
           }
 
           if (!plaintext && deviceIdentity) {
-            let payloads: any[] = [];
             try {
               payloads = msg.encryptedPayloads ? JSON.parse(msg.encryptedPayloads) : [];
             } catch (e) {
-              if (import.meta.env.DEV) console.error('Failed to parse message payloads', e);
+              // Ignore payload parsing failures
             }
 
             const matchingPayloads = payloads.filter(p => p.devicePublicKey === deviceIdentity.publicKey || p.devicePublicKey === state.identity?.publicKey);
 
             if (matchingPayloads.length !== 1) {
-              if (matchingPayloads.length > 1) {
-                if (import.meta.env.DEV) console.warn('Multiple payloads found for this device. Rejecting.');
-              }
               continue;
             }
 
@@ -515,10 +511,6 @@ export function ChatPage() {
               const peerIdentityForSession = hexToBytes(msg.senderPublicKey);
 
               let session = await loadSession(hexToBytes(state.identity!.publicKey), peerIdentityForSession);
-              if (import.meta.env.DEV) console.debug('[Ratchet] loadSession result:', {
-                found: !!session,
-                isInitiator: session?.isInitiator,
-              });
 
               if (!session && ephemeralPublicKey && ephemeralPublicKey !== '00'.repeat(32)) {
                 try {
@@ -560,7 +552,6 @@ export function ChatPage() {
                   // The device key (Ed25519) is only used for authentication/signing.
                   // Using deviceIdentity (Ed25519) here produces a wrong shared secret
                   // that will never match the initiator's computation → decryption always fails.
-                  if (import.meta.env.DEV) console.debug('[Ratchet] initSession (responder)');
                   const res = await initSession(
                     { privateKey: hexToBytes(state.identity!.privateKey), publicKey: hexToBytes(state.identity!.publicKey) },
                     peerPubForSession,
@@ -568,10 +559,9 @@ export function ChatPage() {
                     null,
                     reqSenderEph
                   );
-                  if (import.meta.env.DEV) console.debug('[Ratchet] responder session created');
                   session = res.session;
                 } catch (e: any) {
-                  if (import.meta.env.DEV) console.error('Responder init failed:', e.message);
+                  console.error('Responder init failed:', e.message);
                   continue;
                 }
               }
@@ -587,7 +577,7 @@ export function ChatPage() {
                     ttlMs: targetPayload.ttlMs || msg.ttlSeconds * 1000
                   });
                 } catch (error) {
-                  if (import.meta.env.DEV) console.warn('Ratchet decryption failed', error);
+                  // Ignore decryption failures
                 }
               }
             }
@@ -737,7 +727,6 @@ export function ChatPage() {
         }
 
         if (!d.identitySignature) {
-          if (import.meta.env.DEV) console.warn('Rejecting device — missing identity signature');
           continue;
         }
 
@@ -770,7 +759,6 @@ export function ChatPage() {
           // Signature strictly matches the identity key. The user authorized this device.
           allDevicesToEncrypt.push(d);
         } catch (err) {
-          if (import.meta.env.DEV) console.error('Failed to verify device signature', err);
           continue;
         }
       }

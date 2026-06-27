@@ -22,7 +22,7 @@ export async function ensureDeviceRegistered(): Promise<void> {
     let deviceIdentity = await getDeviceIdentity();
 
     if (!deviceIdentity) {
-        console.log('No device identity found. Generating new key pair...');
+        // Generate a new key pair for device identity
         const keyPair = generateEd25519KeyPair();
         const deviceName = getDeviceName();
 
@@ -68,16 +68,16 @@ export async function ensureDeviceRegistered(): Promise<void> {
             if (response.ok) {
                 // Persist flag so future mounts skip this call
                 await idb.put('settings', 'true', regFlagKey);
-                console.log('Device registered successfully');
+                // Successfully registered
             } else if (response.status === 409) {
                 // Already on the server — set local flag to prevent redundant future calls
                 await idb.put('settings', 'true', regFlagKey);
             } else {
                 const errorText = await response.text();
-                console.error('Failed to register device:', errorText);
+                // Handle registration failure silently or pass up
             }
         } catch (error) {
-            console.error('Error during device registration:', error);
+            // Handled
         }
     }
 }

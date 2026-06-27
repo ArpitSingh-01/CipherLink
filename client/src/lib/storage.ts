@@ -364,7 +364,6 @@ export async function getDeviceIdentity(): Promise<DeviceIdentity | null> {
     await saveDeviceIdentity(record.publicKey, record.privateKey, record.deviceName);
     return record;
   } catch (err) {
-    console.error("Failed to decrypt device identity:", err);
     return null;
   }
 }
@@ -671,7 +670,7 @@ export async function saveRatchetSession(sessionId: string, session: unknown): P
     const database = await getDB();
     await database.put('ratchetSessions', record, sessionId);
   } catch (err) {
-    console.error("Failed to save encrypted ratchet session:", err);
+    // Ignore session write errors
   }
 }
 
@@ -688,7 +687,6 @@ export async function getRatchetSession(sessionId: string): Promise<unknown | un
 
     // If it's old unencrypted format (cleanup), record might not have iv/salt
     if (!record.ciphertext || !record.iv || !record.salt) {
-      console.warn("Found unencrypted session record. Deleting for security.");
       await database.delete('ratchetSessions', sessionId);
       return undefined;
     }
@@ -701,7 +699,6 @@ export async function getRatchetSession(sessionId: string): Promise<unknown | un
     
     return JSON.parse(decryptedJson);
   } catch (err) {
-    console.error("Failed to load/decrypt ratchet session:", err);
     return undefined;
   }
 }
@@ -735,7 +732,6 @@ export async function ensureSessionCryptoVersion(): Promise<void> {
   const LS_KEY = 'cipherlink-session-crypto-version';
   const stored = localStorage.getItem(LS_KEY);
   if (stored !== SESSION_CRYPTO_VERSION) {
-    console.info(`[CipherLink] Session crypto version changed (${stored} → ${SESSION_CRYPTO_VERSION}). Clearing stale sessions.`);
     await clearAllRatchetSessions();
     localStorage.setItem(LS_KEY, SESSION_CRYPTO_VERSION);
   }
@@ -803,7 +799,7 @@ export async function cleanupDatabase(): Promise<void> {
       }
     }
   } catch (err) {
-    console.error("Cleanup iteration failed", err);
+    // Ignore cleanup iteration errors
   }
 
   // 2. Delete ephemeral data: stale sessions and skipped keys
@@ -820,7 +816,7 @@ export async function cleanupDatabase(): Promise<void> {
       }
     }
   } catch (err) {
-    console.error("Cleanup iteration failed", err);
+    // Ignore session cleanup errors
   }
 }
 
@@ -859,7 +855,7 @@ export function startCleanupWorker() {
       try {
         await runCleanupWithLock();
       } catch (err) {
-        console.error("Cleanup worker error", err);
+        // Ignore background worker errors
       }
     }, 5 * 60 * 1000);
   }
