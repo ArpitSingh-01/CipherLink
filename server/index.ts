@@ -3,7 +3,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import cors from "cors";
-import { registerRoutes } from "./routes";
+import { registerRoutes } from "./routes/index";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 import { startCleanupJob, stopCleanupJob } from "./cleanup";
