@@ -5,7 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { LandingPage } from "@/components/landing-page";
 import { Onboarding } from "@/components/onboarding";
-import { ChatPage } from "@/components/chat-page";
+import { ChatPage } from "@/components/ChatPage";
 import NotFound from "@/pages/not-found";
 import { setPersistentHooks } from '@/lib/session';
 
