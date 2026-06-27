@@ -588,9 +588,14 @@ export class MemStorage implements IStorage {
   // Batch display name lookup
   async getUsersDisplayNames(publicKeys: string[]): Promise<Map<string, string | null>> {
     const result = new Map<string, string | null>();
-    for (const key of publicKeys) {
-      const user = await this.getUser(key);
-      result.set(key.toLowerCase().trim(), user?.displayName ?? null);
+    const entries = await Promise.all(
+      publicKeys.map(async (key) => {
+        const user = await this.getUser(key);
+        return [key.toLowerCase().trim(), user?.displayName ?? null] as const;
+      })
+    );
+    for (const [k, v] of entries) {
+      result.set(k, v);
     }
     return result;
   }
