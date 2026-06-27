@@ -95,6 +95,7 @@ import { formatDistanceToNow, differenceInSeconds, format } from 'date-fns';
 import { DevicesDialog } from './devices-dialog';
 import { IdentityDialog } from './identity-dialog';
 import { FriendsSidebar } from './FriendsSidebar';
+import { ComposeBar } from './ComposeBar';
 
 interface ChatState {
   identity: {
@@ -252,68 +253,6 @@ function ChatHeader({
   );
 }
 
-function MessageInput({
-  onSend,
-  disabled,
-}: {
-  onSend: (message: string, ttl: number) => void;
-  disabled: boolean;
-}) {
-  const [message, setMessage] = useState('');
-  const [ttl, setTtl] = useState(DEFAULT_TTL.toString());
-
-  const handleSend = () => {
-    if (message.trim() && !disabled) {
-      onSend(message.trim(), parseInt(ttl));
-      setMessage('');
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
-  };
-
-  return (
-    <div className="p-4 border-t border-border">
-      <div className="flex items-end gap-3">
-        <Select value={ttl} onValueChange={setTtl}>
-          <SelectTrigger className="w-28" data-testid="select-ttl">
-            <Clock className="w-4 h-4 mr-1" />
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {TTL_OPTIONS.map((option) => (
-              <SelectItem key={option.value} value={option.value.toString()}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <div className="flex-1 relative">
-          <Input
-            placeholder="Type a message..."
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            onKeyDown={handleKeyDown}
-            disabled={disabled}
-            className="pr-12"
-            data-testid="input-message"
-          />
-        </div>
-        <Button
-          onClick={handleSend}
-          disabled={!message.trim() || disabled}
-          data-testid="button-send-message"
-        >
-          <Send className="w-4 h-4" />
-        </Button>
-      </div>
-    </div>
-  );
-}
 
 function EmptyChat() {
   return (
@@ -1468,7 +1407,7 @@ export function ChatPage() {
                 </div>
               </div>
             ) : (
-              <MessageInput
+              <ComposeBar
                 onSend={(message, ttl) => sendMessageMutation.mutate({ message, ttl })}
                 disabled={sendMessageMutation.isPending}
               />
