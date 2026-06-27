@@ -41,11 +41,11 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/useToast';
-import { useWebSocketNotifications } from '@/hooks/useWsNotifications';
+import { useNotifications } from '@/hooks/useNotifications';
 import { getIdentity, getDeviceIdentity, getAllFriends, saveFriend, getFriend, updateFriendLastMessage, blockUser, unblockUser, isBlocked as isBlockedLocal, getBlockedUsers, clearAllData, hasEncryptedIdentity, getIdentityEncrypted, setDecryptedIdentity, saveSentMessage, getSentMessage, setFriendVerified, getDB, detectIdentityKeyChange, clearSessionMemory, ensureSessionCryptoVersion } from '@/lib/storage';
 import { hexToBytes, bytesToHex, generateFriendCode, computeSafetyNumber, MIN_PIN_LENGTH, zeroizeBytes } from '@/lib/crypto';
 import { ensureDeviceRegistered, detectNewDevices, acknowledgeDevices } from '@/lib/devices';
-import { loadSession, initSession, encryptRatchet, decryptRatchet, setPersistentHooks } from '@/lib/session';
+import { loadSession, initSession, encryptRatchet, decryptRatchet } from '@/lib/session';
 import { TTL_OPTIONS, DEFAULT_TTL, type LocalFriend, type DecryptedMessage } from '@shared/schema';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { authenticatedFetch } from '@/lib/auth';
@@ -146,7 +146,7 @@ function VerificationDialog({
     if (open) {
       computeSafetyNumber(hexToBytes(ownPublicKey), hexToBytes(friend.publicKey))
         .then(setSafetyData)
-        .catch(err => console.error("Failed to compute safety number", err));
+        .catch(err => { if (import.meta.env.DEV) console.error("Failed to compute safety number", err); });
     }
   }, [open, ownPublicKey, friend.publicKey]);
 
@@ -235,9 +235,9 @@ export function ChatPage() {
   const pinAttemptCount = useRef(0);
   const pinLockoutUntil = useRef<number>(0);
 
-  // WebSocket push notifications — makes messages appear instantly (<100ms)
-  // instead of waiting for the next 2s poll cycle
-  useWebSocketNotifications(state.identity?.publicKey);
+  // Supabase Realtime push notifications — makes messages appear instantly (<100ms)
+  // instead of waiting for the next poll cycle
+  useNotifications(state.identity?.publicKey);
 
   useEffect(() => {
     const handleResize = () => {
@@ -364,10 +364,7 @@ export function ChatPage() {
 
     // Wipe any stale ratchet sessions from old crypto formats on every identity load.
     // This is essential for Vite HMR where the IDB upgrade callback doesn't re-fire.
-    ensureSessionCryptoVersion().catch(e => console.warn('[CipherLink] ensureSessionCryptoVersion failed:', e));
-
-    // setPersistentHooks moved to App.tsx module level — no longer called here.
-    // The TOFU hooks are now registered before any component renders.
+    ensureSessionCryptoVersion().catch(e => { if (import.meta.env.DEV) console.warn('[CipherLink] ensureSessionCryptoVersion failed:', e); });
   }, [state.identity]);
 
   const handlePinUnlock = async (enteredPin: string) => {
@@ -495,14 +492,14 @@ export function ChatPage() {
             try {
               payloads = msg.encryptedPayloads ? JSON.parse(msg.encryptedPayloads) : [];
             } catch (e) {
-              console.error('Failed to parse message payloads', e);
+              if (import.meta.env.DEV) console.error('Failed to parse message payloads', e);
             }
 
             const matchingPayloads = payloads.filter(p => p.devicePublicKey === deviceIdentity.publicKey || p.devicePublicKey === state.identity?.publicKey);
 
             if (matchingPayloads.length !== 1) {
               if (matchingPayloads.length > 1) {
-                console.warn('Multiple payloads found for this device. Rejecting.');
+                if (import.meta.env.DEV) console.warn('Multiple payloads found for this device. Rejecting.');
               }
               continue;
             }
@@ -518,11 +515,9 @@ export function ChatPage() {
               const peerIdentityForSession = hexToBytes(msg.senderPublicKey);
 
               let session = await loadSession(hexToBytes(state.identity!.publicKey), peerIdentityForSession);
-              console.debug('[Ratchet] loadSession result:', {
+              if (import.meta.env.DEV) console.debug('[Ratchet] loadSession result:', {
                 found: !!session,
                 isInitiator: session?.isInitiator,
-                localPub: state.identity!.publicKey.slice(0, 12),
-                peerPub: msg.senderPublicKey.slice(0, 12),
               });
 
               if (!session && ephemeralPublicKey && ephemeralPublicKey !== '00'.repeat(32)) {
@@ -537,7 +532,7 @@ export function ChatPage() {
 
                   const { ed25519 } = await import('@noble/curves/ed25519.js');
                   const sigMsg = new TextEncoder().encode(peerDevice.devicePublicKey);
-                  const sigBytes = new Uint8Array(peerDevice.identitySignature.match(/.{2}/g)!.map((b: string) => parseInt(b, 16)));
+                  const sigBytes = hexToBytes(peerDevice.identitySignature);
 
                   // CRITICAL FIX: identitySignature was signed with the primary device's Ed25519 key.
                   // msg.senderPublicKey is the X25519 identity key — WRONG curve, wrong key, wrong for verify.
@@ -547,7 +542,7 @@ export function ChatPage() {
                   // We find the primary device by checking which device is self-signed (TOFU bootstrap).
                   const primaryDevice = peerDevices.find((d: any) => {
                     try {
-                      const selfSig = new Uint8Array(d.identitySignature.match(/.{2}/g)!.map((b: string) => parseInt(b, 16)));
+                      const selfSig = hexToBytes(d.identitySignature);
                       const selfMsg = new TextEncoder().encode(d.devicePublicKey);
                       const selfKey = hexToBytes(d.devicePublicKey);
                       return ed25519.verify(selfSig, selfMsg, selfKey);
@@ -565,12 +560,7 @@ export function ChatPage() {
                   // The device key (Ed25519) is only used for authentication/signing.
                   // Using deviceIdentity (Ed25519) here produces a wrong shared secret
                   // that will never match the initiator's computation → decryption always fails.
-                  console.debug('[Ratchet] initSession (responder):', {
-                    localIdentityPub: state.identity!.publicKey.slice(0, 12),
-                    remoteDeviceKey: peerDeviceHex.slice(0, 12),
-                    remoteIdentityPub: msg.senderPublicKey.slice(0, 12),
-                    ephemeralPub: ephemeralPublicKey?.slice(0, 12),
-                  });
+                  if (import.meta.env.DEV) console.debug('[Ratchet] initSession (responder)');
                   const res = await initSession(
                     { privateKey: hexToBytes(state.identity!.privateKey), publicKey: hexToBytes(state.identity!.publicKey) },
                     peerPubForSession,
@@ -578,13 +568,10 @@ export function ChatPage() {
                     null,
                     reqSenderEph
                   );
-                  console.debug('[Ratchet] responder session created:', {
-                    isInitiator: res.session.isInitiator,
-                    sessionId: res.session.sessionId.slice(0, 16),
-                  });
+                  if (import.meta.env.DEV) console.debug('[Ratchet] responder session created');
                   session = res.session;
                 } catch (e: any) {
-                  console.error('Responder init failed:', e.message);
+                  if (import.meta.env.DEV) console.error('Responder init failed:', e.message);
                   continue;
                 }
               }
@@ -600,7 +587,7 @@ export function ChatPage() {
                     ttlMs: targetPayload.ttlMs || msg.ttlSeconds * 1000
                   });
                 } catch (error) {
-                  console.warn('Ratchet decryption failed', error);
+                  if (import.meta.env.DEV) console.warn('Ratchet decryption failed', error);
                 }
               }
             }
@@ -750,7 +737,7 @@ export function ChatPage() {
         }
 
         if (!d.identitySignature) {
-          console.warn(`Rejecting device ${d.devicePublicKey} - missing identity signature`);
+          if (import.meta.env.DEV) console.warn('Rejecting device — missing identity signature');
           continue;
         }
 
@@ -760,7 +747,7 @@ export function ChatPage() {
           const primaryDevice = groupDevices.find((pd: any) => {
             if (!pd.identitySignature) return false;
             try {
-              const selfSig = new Uint8Array(pd.identitySignature.match(/.{2}/g)!.map((b: string) => parseInt(b, 16)));
+              const selfSig = hexToBytes(pd.identitySignature);
               const selfMsg = new TextEncoder().encode(pd.devicePublicKey);
               const selfKey = hexToBytes(pd.devicePublicKey);
               return ed25519.verify(selfSig, selfMsg, selfKey);
@@ -773,17 +760,17 @@ export function ChatPage() {
             : hexToBytes(d.devicePublicKey);
 
           const sigMsg = new TextEncoder().encode(d.devicePublicKey);
-          const sigBytes = new Uint8Array(d.identitySignature.match(/.{2}/g)!.map((b: string) => parseInt(b, 16)));
+          const sigBytes = hexToBytes(d.identitySignature);
 
           if (!ed25519.verify(sigBytes, sigMsg, verifyingKey)) {
-            console.error(`Rejecting device ${d.devicePublicKey} - FORGED identity signature! Server is untrustworthy!`);
+            console.error('[SECURITY] Rejected forged device signature — possible server compromise');
             continue;
           }
 
           // Signature strictly matches the identity key. The user authorized this device.
           allDevicesToEncrypt.push(d);
         } catch (err) {
-          console.error(`Failed to verify signature for device ${d.devicePublicKey}`, err);
+          if (import.meta.env.DEV) console.error('Failed to verify device signature', err);
           continue;
         }
       }
@@ -843,7 +830,7 @@ export function ChatPage() {
           ciphertext: encrypted.ciphertext,
           nonce: encrypted.nonce,
           ephemeralPublicKey: currentEphemeral || '00'.repeat(32),
-          salt: '00'.repeat(32),
+          salt: Array.from(crypto.getRandomValues(new Uint8Array(32))).map(b => b.toString(16).padStart(2, '0')).join(''),
           header: {
             ...encrypted.raw.header,
             // Uint8Arrays are not JSON-serializable — they become {0:1, 1:2, ...} objects.
