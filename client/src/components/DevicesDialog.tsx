@@ -10,7 +10,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/useToast';
 import { Tablet, Smartphone, Laptop, Trash2, CheckCircle2, UserPlus, X, Check, Link, RefreshCw } from 'lucide-react';
 import { getActiveDevices, revokeDevice } from '@/lib/devices';
 import { getDeviceIdentity, getIdentity } from '@/lib/storage';

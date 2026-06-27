@@ -3,10 +3,10 @@ import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { LandingPage } from "@/components/landing-page";
-import { Onboarding } from "@/components/onboarding";
+import { LandingPage } from "@/components/LandingPage";
+import { Onboarding } from "@/components/Onboarding";
 import { ChatPage } from "@/components/ChatPage";
-import NotFound from "@/pages/not-found";
+import NotFound from "@/pages/NotFound";
 import { setPersistentHooks } from '@/lib/session';
 
 // Register TOFU persistent hooks at module level — BEFORE any component renders.

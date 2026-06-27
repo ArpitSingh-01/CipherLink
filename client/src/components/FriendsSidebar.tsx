@@ -24,7 +24,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/useToast';
 import {
   saveFriend,
   unblockUser,
@@ -52,8 +52,8 @@ import {
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
-import { IdentityDialog } from './identity-dialog';
-import { DevicesDialog } from './devices-dialog';
+import { IdentityDialog } from './IdentityDialog';
+import { DevicesDialog } from './DevicesDialog';
 
 // ── Friend List Item Component ────────────────────────────────────────────────
 function FriendListItem({

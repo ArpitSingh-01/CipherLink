@@ -40,8 +40,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { useToast } from '@/hooks/use-toast';
-import { useWebSocketNotifications } from '@/hooks/use-ws-notifications';
+import { useToast } from '@/hooks/useToast';
+import { useWebSocketNotifications } from '@/hooks/useWsNotifications';
 import { getIdentity, getDeviceIdentity, getAllFriends, saveFriend, getFriend, updateFriendLastMessage, blockUser, unblockUser, isBlocked as isBlockedLocal, getBlockedUsers, clearAllData, hasEncryptedIdentity, getIdentityEncrypted, setDecryptedIdentity, saveSentMessage, getSentMessage, setFriendVerified, getDB, detectIdentityKeyChange, clearSessionMemory, ensureSessionCryptoVersion } from '@/lib/storage';
 import { hexToBytes, bytesToHex, generateFriendCode, computeSafetyNumber, MIN_PIN_LENGTH, zeroizeBytes } from '@/lib/crypto';
 import { ensureDeviceRegistered, detectNewDevices, acknowledgeDevices } from '@/lib/devices';
@@ -92,8 +92,8 @@ import {
 } from '@/components/ui/tooltip';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatDistanceToNow, differenceInSeconds, format } from 'date-fns';
-import { DevicesDialog } from './devices-dialog';
-import { IdentityDialog } from './identity-dialog';
+import { DevicesDialog } from './DevicesDialog';
+import { IdentityDialog } from './IdentityDialog';
 import { FriendsSidebar } from './FriendsSidebar';
 import { ComposeBar } from './ComposeBar';
 import { MessageThread } from './MessageThread';

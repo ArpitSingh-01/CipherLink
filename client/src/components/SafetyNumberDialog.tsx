@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/useToast';
 import { ShieldCheck, ShieldAlert, Copy, Check } from 'lucide-react';
 import { computeSafetyNumber, hexToBytes } from '@/lib/crypto';
 import type { LocalFriend } from '@shared/schema';

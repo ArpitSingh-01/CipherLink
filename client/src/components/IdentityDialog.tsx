@@ -9,7 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Copy, KeyRound, SmartphoneNfc } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/hooks/useToast";
 
 export function IdentityDialog({ publicKey }: { publicKey: string }) {
   const { toast } = useToast();
