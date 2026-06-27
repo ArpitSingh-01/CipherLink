@@ -31,7 +31,7 @@ export function useWebSocketNotifications(publicKey: string | null | undefined) 
   const channelRef = useRef<RealtimeChannel | null>(null);
 
   useEffect(() => {
-    if (!publicKey) return;
+    if (!supabase || !publicKey) return;
 
     // Create a unique channel name for this user
     const channelName = `notifications:${publicKey.toLowerCase()}`;
@@ -77,7 +77,7 @@ export function useWebSocketNotifications(publicKey: string | null | undefined) 
 
     return () => {
       // Clean up on unmount
-      if (channelRef.current) {
+      if (channelRef.current && supabase) {
         supabase.removeChannel(channelRef.current);
         channelRef.current = null;
       }
