@@ -830,7 +830,14 @@ export function ChatPage() {
           ciphertext: encrypted.ciphertext,
           nonce: encrypted.nonce,
           ephemeralPublicKey: currentEphemeral || '00'.repeat(32),
-          salt: Array.from(crypto.getRandomValues(new Uint8Array(32))).map(b => b.toString(16).padStart(2, '0')).join(''),
+          // Random placeholder salt — the Double Ratchet derives its own keys.
+          // This field satisfies saltSchema validation; it is NOT used in decryption.
+          // See docs/ENCRYPTION.md for the two-path architecture.
+          salt: (() => {
+            const payloadSalt = new Uint8Array(32);
+            crypto.getRandomValues(payloadSalt);
+            return Array.from(payloadSalt).map(b => b.toString(16).padStart(2, '0')).join('');
+          })(),
           header: {
             ...encrypted.raw.header,
             // Uint8Arrays are not JSON-serializable — they become {0:1, 1:2, ...} objects.
