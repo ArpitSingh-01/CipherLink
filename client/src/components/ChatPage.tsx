@@ -488,6 +488,7 @@ export function ChatPage() {
           }
 
           if (!plaintext && deviceIdentity) {
+            let payloads: any[] = [];
             try {
               payloads = msg.encryptedPayloads ? JSON.parse(msg.encryptedPayloads) : [];
             } catch (e) {

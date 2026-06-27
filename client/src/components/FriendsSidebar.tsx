@@ -40,11 +40,6 @@ import {
   LockOpen,
   UserPlus,
   Bell,
-  Check,
-  Copy,
-  QrCode,
-  UserCheck,
-  X,
   Settings,
   ShieldOff,
   Ban,
@@ -54,6 +49,9 @@ import { formatDistanceToNow } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import { IdentityDialog } from './IdentityDialog';
 import { DevicesDialog } from './DevicesDialog';
+import { FriendCodePanel } from './friends/FriendCodePanel';
+import { FriendRequestList, type PendingRequest } from './friends/FriendRequestList';
+import { FriendSearch } from './friends/FriendSearch';
 
 // ── Friend List Item Component ────────────────────────────────────────────────
 function FriendListItem({
@@ -106,7 +104,7 @@ function FriendListItem({
         </p>
       </div>
       {friend.lastMessageAt && (
-        <span className="text-xs text-muted-foreground">
+        <span className="text-xs text-muted-foreground flex-shrink-0">
           {formatDistanceToNow(new Date(friend.lastMessageAt), { addSuffix: false })}
         </span>
       )}
@@ -139,13 +137,9 @@ function AddFriendDialog({
   publicKey: string;
   onFriendAdded: () => void;
 }) {
-  const [mode, setMode] = useState<'generate' | 'enter'>('generate');
+  const [open, setOpen] = useState(false);
   const [generatedCode, setGeneratedCode] = useState<string | null>(null);
   const [expiresAt, setExpiresAt] = useState<Date | null>(null);
-  const [enteredCode, setEnteredCode] = useState('');
-  const [copied, setCopied] = useState(false);
-  const [friendName, setFriendName] = useState('');
-  const [open, setOpen] = useState(false);
   const { toast } = useToast();
 
   const generateCodeMutation = useMutation({
@@ -175,9 +169,9 @@ function AddFriendDialog({
   });
 
   const redeemCodeMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async ({ code, name }: { code: string; name: string }) => {
       const response = await apiRequest('POST', '/api/friend-codes/redeem', {
-        code: enteredCode.trim().toUpperCase(),
+        code: code.trim().toUpperCase(),
         redeemerPublicKey: publicKey,
       });
 
@@ -186,12 +180,13 @@ function AddFriendDialog({
         throw new Error(errorData.error || 'Failed to redeem code');
       }
 
-      return response.json();
+      return { response: await response.json(), friendName: name };
     },
-    onSuccess: async (data: { friendPublicKey: string }) => {
+    onSuccess: async (data) => {
+      const resData = data.response as { friendPublicKey: string };
       await saveFriend({
-        publicKey: data.friendPublicKey,
-        displayName: friendName || `User-${data.friendPublicKey.slice(0, 8).toUpperCase()}`,
+        publicKey: resData.friendPublicKey,
+        displayName: data.friendName || `User-${resData.friendPublicKey.slice(0, 8).toUpperCase()}`,
       });
 
       toast({
@@ -200,8 +195,6 @@ function AddFriendDialog({
       });
 
       setOpen(false);
-      setEnteredCode('');
-      setFriendName('');
       onFriendAdded();
     },
     onError: (error: Error) => {
@@ -212,29 +205,6 @@ function AddFriendDialog({
       });
     },
   });
-
-  const copyCode = () => {
-    if (generatedCode) {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(generatedCode);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 3000);
-      } else {
-        const textArea = document.createElement('textarea');
-        textArea.value = generatedCode;
-        document.body.appendChild(textArea);
-        textArea.select();
-        try {
-          document.execCommand('copy');
-          setCopied(true);
-          setTimeout(() => setCopied(false), 3000);
-        } catch (err) {
-          console.error('Copy failed:', err);
-        }
-        document.body.removeChild(textArea);
-      }
-    }
-  };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -251,110 +221,21 @@ function AddFriendDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex gap-2 mb-4">
-          <Button
-            variant={mode === 'generate' ? 'default' : 'outline'}
-            className="flex-1"
-            onClick={() => setMode('generate')}
-          >
-            <QrCode className="w-4 h-4 mr-2" />
-            Share Code
-          </Button>
-          <Button
-            variant={mode === 'enter' ? 'default' : 'outline'}
-            className="flex-1"
-            onClick={() => setMode('enter')}
-          >
-            <UserPlus className="w-4 h-4 mr-2" />
-            Enter Code
-          </Button>
-        </div>
-
-        {mode === 'generate' ? (
-          <div className="space-y-4">
-            {generatedCode ? (
-              <>
-                <div className="p-6 rounded-xl bg-muted/50 text-center">
-                  <p className="text-3xl font-mono font-bold tracking-widest mb-2" data-testid="text-friend-code">
-                    {generatedCode.split('').map((char, i) => (
-                      <span key={i} className="animate-reveal inline-block" style={{ animationDelay: `${i * 0.05}s` }}>
-                        {char}
-                      </span>
-                    ))}
-                  </p>
-                  {expiresAt && (
-                    <p className="text-sm text-muted-foreground">
-                      Expires in {formatDistanceToNow(expiresAt)}
-                    </p>
-                  )}
-                </div>
-                <Button className="w-full" onClick={copyCode}>
-                  {copied ? (
-                    <>
-                      <Check className="w-4 h-4 mr-2" />
-                      Copied!
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="w-4 h-4 mr-2" />
-                      Copy Code
-                    </>
-                  )}
-                </Button>
-              </>
-            ) : (
-              <Button
-                className="w-full"
-                onClick={() => generateCodeMutation.mutate()}
-                disabled={generateCodeMutation.isPending}
-                data-testid="button-generate-code"
-              >
-                {generateCodeMutation.isPending ? 'Generating...' : 'Generate Friend Code'}
-              </Button>
-            )}
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <div>
-              <label className="text-sm font-medium mb-2 block">Friend Code</label>
-              <Input
-                placeholder="Enter 8-character code"
-                value={enteredCode}
-                onChange={(e) => setEnteredCode(e.target.value.toUpperCase())}
-                maxLength={8}
-                className="font-mono text-center text-lg tracking-widest"
-                data-testid="input-friend-code"
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium mb-2 block">Friend's Name (optional)</label>
-              <Input
-                placeholder="What should we call them?"
-                value={friendName}
-                onChange={(e) => setFriendName(e.target.value)}
-                data-testid="input-friend-name"
-              />
-            </div>
-            <Button
-              className="w-full"
-              onClick={() => redeemCodeMutation.mutate()}
-              disabled={enteredCode.length !== 8 || redeemCodeMutation.isPending}
-              data-testid="button-redeem-code"
-            >
-              {redeemCodeMutation.isPending ? 'Adding...' : 'Add Friend'}
-            </Button>
-          </div>
-        )}
+        <FriendCodePanel
+          onCodeCreated={async () => {
+            generateCodeMutation.mutate();
+          }}
+          onCodeRedeemed={async (code, name) => {
+            redeemCodeMutation.mutate({ code, name });
+          }}
+          isGenerating={generateCodeMutation.isPending}
+          isRedeeming={redeemCodeMutation.isPending}
+          generatedCode={generatedCode}
+          expiresAt={expiresAt}
+        />
       </DialogContent>
     </Dialog>
   );
-}
-
-interface PendingRequest {
-  id: string;
-  friendPublicKey: string;
-  friendName: string | null;
-  createdAt: string;
 }
 
 // ── Pending Requests Dialog ──────────────────────────────────────────────────
@@ -366,8 +247,6 @@ function PendingRequestsDialog({
   onRequestHandled: () => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [friendName, setFriendName] = useState('');
-  const [selectedRequest, setSelectedRequest] = useState<PendingRequest | null>(null);
   const { toast } = useToast();
 
   const { data: pendingRequests = [], refetch } = useQuery({
@@ -395,18 +274,16 @@ function PendingRequestsDialog({
 
       return await response.json() as { success: boolean; friendPublicKey: string; friendName: string | null };
     },
-    onSuccess: async (data: { success: boolean; friendPublicKey: string; friendName: string | null }) => {
+    onSuccess: async (data) => {
       await saveFriend({
         publicKey: data.friendPublicKey,
-        displayName: friendName || `User-${data.friendPublicKey.slice(0, 8).toUpperCase()}`,
+        displayName: data.friendName || `User-${data.friendPublicKey.slice(0, 8).toUpperCase()}`,
       });
 
       toast({
         title: 'Friend Added',
         description: 'You can now start messaging!',
       });
-      setSelectedRequest(null);
-      setFriendName('');
       setOpen(false);
       refetch();
       onRequestHandled();
@@ -475,89 +352,17 @@ function PendingRequestsDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {selectedRequest ? (
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Someone wants to connect with you. Give them a name you'll recognize.
-            </p>
-            <div>
-              <label className="text-sm font-medium mb-2 block">Their Display Name</label>
-              <Input
-                placeholder="What should we call them?"
-                value={friendName}
-                onChange={(e) => setFriendName(e.target.value)}
-                data-testid="input-accept-friend-name"
-              />
-            </div>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                className="flex-1"
-                onClick={() => setSelectedRequest(null)}
-              >
-                Back
-              </Button>
-              <Button
-                className="flex-1"
-                onClick={() => acceptMutation.mutate({
-                  friendPublicKey: selectedRequest.friendPublicKey,
-                  friendName: friendName || 'Anonymous'
-                })}
-                disabled={acceptMutation.isPending}
-              >
-                {acceptMutation.isPending ? 'Accepting...' : 'Accept'}
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {pendingRequests.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <Bell className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                <p>No pending requests</p>
-                <p className="text-sm">Share your friend code to connect with others</p>
-              </div>
-            ) : (
-              pendingRequests.map((request: PendingRequest) => (
-                <div
-                  key={request.id}
-                  className="flex items-center gap-3 p-3 rounded-lg bg-muted/50"
-                >
-                  <Avatar className="w-10 h-10">
-                    <AvatarFallback className="bg-primary/10 text-primary">
-                      ?
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1">
-                    <p className="font-medium">New Friend Request</p>
-                    <p className="text-xs text-muted-foreground">
-                      {formatDistanceToNow(new Date(request.createdAt), { addSuffix: true })}
-                    </p>
-                  </div>
-                  <div className="flex gap-1">
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="text-green-500 hover:text-green-600 hover:bg-green-500/10"
-                      onClick={() => setSelectedRequest(request)}
-                    >
-                      <UserCheck className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                      onClick={() => declineMutation.mutate(request.friendPublicKey)}
-                      disabled={declineMutation.isPending}
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        )}
+        <FriendRequestList
+          pendingRequests={pendingRequests}
+          onAccept={async (friendPublicKey, friendName) => {
+            acceptMutation.mutate({ friendPublicKey, friendName });
+          }}
+          onDecline={async (friendPublicKey) => {
+            declineMutation.mutate(friendPublicKey);
+          }}
+          isAccepting={acceptMutation.isPending}
+          isDeclining={declineMutation.isPending}
+        />
       </DialogContent>
     </Dialog>
   );
@@ -698,6 +503,13 @@ export function FriendsSidebar({
   handleUnblockFromDialog: (blockedPublicKey: string) => void;
   handleLogout: () => Promise<void>;
 }) {
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredFriends = friends.filter(friend =>
+    friend.displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    friend.publicKey.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
     <AnimatePresence>
       {(showSidebar || !isMobile) && (
@@ -710,7 +522,7 @@ export function FriendsSidebar({
           } w-80 border-r border-border bg-sidebar flex flex-col`}
         >
           {/* Sidebar Header */}
-          <div className="p-4 border-b border-sidebar-border">
+          <div className="p-4 border-b border-sidebar-border mb-2">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
@@ -734,13 +546,20 @@ export function FriendsSidebar({
             </div>
           </div>
 
+          {/* Search Bar */}
+          <FriendSearch searchQuery={searchQuery} onSearchChange={setSearchQuery} />
+
           {/* Friends List */}
           <ScrollArea className="flex-grow flex flex-col">
             <div className="p-2">
-              {friends.length === 0 ? (
-                <EmptyFriends onAddFriend={() => {}} />
+              {filteredFriends.length === 0 ? (
+                <div className="flex-1 flex flex-col items-center justify-center py-12 px-4 text-center">
+                  <p className="text-muted-foreground text-sm">
+                    {searchQuery ? 'No friends match search query' : 'No friends yet'}
+                  </p>
+                </div>
               ) : (
-                friends.map((friend) => (
+                filteredFriends.map((friend) => (
                   <FriendListItem
                     key={friend.publicKey}
                     friend={friend}
