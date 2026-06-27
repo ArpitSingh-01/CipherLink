@@ -200,8 +200,9 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
         const message  = `${req.method}\n${req.originalUrl}\n${bodyHash}\n${timestamp}\n${requestNonce}`;
 
         const sigBytes     = hexToBytes(signature);
-        const messageBytes = new TextEncoder().encode(message);
+                const messageBytes = new TextEncoder().encode(message);
         const deviceBytes  = hexToBytes(normalizedDeviceKey);
+
 
         const valid = await verifySignatureWithJitter(sigBytes, messageBytes, deviceBytes);
 

@@ -310,7 +310,7 @@ export class MemStorage implements IStorage {
   async areMutualFriends(publicKey1: string, publicKey2: string): Promise<boolean> {
     const k1 = publicKey1.toLowerCase().trim();
     const k2 = publicKey2.toLowerCase().trim();
-    return Array.from(this.friends.values()).some(
+    const records = Array.from(this.friends.values()).filter(
       (friend) =>
         friend.status === 'accepted' &&
         (
@@ -318,7 +318,9 @@ export class MemStorage implements IStorage {
           (friend.userPublicKey === k2 && friend.friendPublicKey === k1)
         )
     );
+    return records.length === 2;
   }
+
 
   // SEC-FIX-7: Atomic friend code redemption (single-threaded in-memory, no race conditions)
   async redeemFriendCode(code: string, redeemerPublicKey: string): Promise<{ friendPublicKey: string }> {

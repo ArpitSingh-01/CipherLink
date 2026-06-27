@@ -10,7 +10,8 @@ import { startCleanupJob, stopCleanupJob } from "./cleanup";
 import { closeDatabase } from "./db";
 import { requestSizeLimit } from "./middleware/sizeLimit";
 import { perIPLimiter } from "./middleware/rateLimitPerIP";
-import { setupWebSocket } from "./ws";
+// WebSocket server (ws.ts) is available but NOT imported/started.
+// See comment below at the former setupWebSocket() call site.
 
 const app = express();
 const httpServer = createServer(app);
@@ -128,8 +129,11 @@ app.use((req, res, next) => {
 (async () => {
   await registerRoutes(httpServer, app);
 
-  // Attach WebSocket notification server to the same HTTP server
-  setupWebSocket(httpServer);
+  // Notifications: server pushes via Supabase Realtime (broadcast.ts).
+  // WebSocket server (ws.ts) is available but not started — Vercel serverless
+  // does not support persistent WS connections. Use broadcast.ts for all envs.
+  // The Supabase Realtime channel uses the public key as the channel name.
+  // No message content flows through it — only cache-invalidation signals.
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;

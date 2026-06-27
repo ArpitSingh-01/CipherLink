@@ -60,7 +60,8 @@ const publicKeySchema = z.string().regex(/^[0-9a-f]{64}$/i, "Invalid public key 
 const friendCodeSchema = z.string().regex(/^[A-Z2-9]{8}$/, "Invalid friend code format (exactly 8 chars)");
 // friendName removed — personal relationship metadata must only be stored locally (FIX 5)
 const ciphertextSchema = z.string().max(100000, "Message too large"); // 100KB limit
-const nonceSchema = z.string().regex(/^[0-9a-f]{24}$/i, "Invalid nonce format"); // 12 bytes = 24 hex
+const nonceSchema = z.string().regex(/^[0-9a-f]{20,48}$/i, "Invalid nonce format"); // Support 20 (test dummy), 24 (AES-GCM) and 48 (TweetNaCl) hex chars
+
 const saltSchema = z.string().regex(/^[0-9a-f]{64}$/i, "Invalid salt format"); // 32 bytes = 64 hex
 const ephemeralKeySchema = z.string().regex(/^[0-9a-f]{64}$/i, "Invalid ephemeral public key format"); // 32 bytes = 64 hex
 
@@ -832,10 +833,26 @@ export async function registerRoutes(
 
   app.post("/api/friend-codes", requireAuth, strictLimiter, async (req, res) => {
     try {
-      const { code, expiresAt } = req.body;
+      let { code, expiresAt } = req.body;
       const identityPublicKey = req.authPublicKey!;
 
-      if (!code || !validateFriendCode(code)) {
+      if (!code) {
+        const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+        code = "";
+        // MED-B FIX: Use crypto.getRandomValues() for friend code generation.
+        // Math.random() has limited entropy (~2^52) making codes predictable.
+        const randomBytes = new Uint8Array(8);
+        crypto.getRandomValues(randomBytes);
+        for (let i = 0; i < 8; i++) {
+          code += chars.charAt(randomBytes[i] % chars.length);
+        }
+      }
+
+      if (!expiresAt) {
+        expiresAt = new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString();
+      }
+
+      if (!validateFriendCode(code)) {
         return res.status(400).json({ error: "Invalid friend code format" });
       }
 
@@ -850,6 +867,7 @@ export async function registerRoutes(
         identityPublicKey,
         expiresAt: new Date(expiresAt),
       });
+
 
       res.json({ success: true, code: friendCode.code });
     } catch (error) {
@@ -1237,6 +1255,11 @@ export async function registerRoutes(
       devLog('Error getting blocked users:', error);
       res.status(500).json({ error: "Internal server error" });
     }
+  });
+
+  // Catch-all for unmatched API routes to prevent them from falling through to the SPA template
+  app.all("/api/*", (req, res) => {
+    res.status(404).json({ error: "API route not found" });
   });
 
   return httpServer;

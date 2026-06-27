@@ -366,10 +366,10 @@ export class SupabaseStorage implements IStorage {
               and(eq(friends.userPublicKey, k2), eq(friends.friendPublicKey, k1))
             )
           )
-        )
-        .limit(1);
-      return result.length > 0;
+        );
+      return result.length === 2;
     } catch (error) {
+
       if (isDev) console.error('Error checking mutual friendship:', error);
       throw error;
     }
@@ -900,6 +900,13 @@ export class SupabaseStorage implements IStorage {
 
   async rotateIdentityKey(userPublicKey: string, newPublicKey: string): Promise<void> {
     try {
+      const existingUser = await this.getUser(newPublicKey);
+      if (existingUser) {
+        const err: any = new Error('Public key already registered to another account');
+        err.code = '23505';
+        throw err;
+      }
+
       await db.transaction(async (tx) => {
         // 1. Add to history
         await tx.insert(identityKeyHistory)
@@ -907,6 +914,7 @@ export class SupabaseStorage implements IStorage {
             userPublicKey: newPublicKey,
             oldPublicKey: userPublicKey,
           });
+
 
         // 2. Update user public key
         // Note: Since tables reference publicKey, we must update all of them manually
