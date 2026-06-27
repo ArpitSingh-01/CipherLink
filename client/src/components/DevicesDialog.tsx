@@ -1,3 +1,6 @@
+/**
+ * DevicesDialog component for managing registered device endpoints and link requests.
+ */
 import { useState } from 'react';
 import {
     Dialog,

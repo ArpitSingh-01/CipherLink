@@ -1,3 +1,6 @@
+/**
+ * ComposeBar component for text entry, TTL selection, and message dispatch.
+ */
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

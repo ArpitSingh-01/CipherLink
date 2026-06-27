@@ -1,3 +1,7 @@
+/**
+ * Zod validation schemas and helpers for API payload validation.
+ * Ensures consistent public keys, friend codes, and cryptographic payload structures.
+ */
 import { z } from 'zod';
 
 export const publicKeySchema = z.string().regex(/^[0-9a-f]{64}$/i, "Invalid public key format");

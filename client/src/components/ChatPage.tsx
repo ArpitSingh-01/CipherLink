@@ -1,3 +1,7 @@
+/**
+ * ChatPage component for end-to-end encrypted messaging.
+ * Coordinates Double Ratchet sessions, message processing, and secure UI states.
+ */
 import { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'wouter';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
