@@ -76,14 +76,12 @@ async function consumeAuthNonce(nonce: string, publicKey: string): Promise<boole
         // Expired nonce cleanup is handled by the cleanup job (cleanup.ts, every 60s)
         await db.insert(authNonces).values({ nonce, publicKey, expiresAt });
         return true; // new nonce, allow
-    } catch (err: any) {
-        // Only treat unique-constraint violations as genuine replay attempts.
-        // All other errors (timeouts, pool exhaustion, etc.) are infrastructure failures
-        // that MUST be re-thrown so the caller can return 500, not a false 401.
+    } catch (err) {
+        const error = err as any;
         const isUniqueViolation =
-            err?.code === '23505' ||
-            err?.message?.toLowerCase().includes('unique') ||
-            err?.message?.toLowerCase().includes('duplicate key');
+            error?.code === '23505' ||
+            error?.message?.toLowerCase().includes('unique') ||
+            error?.message?.toLowerCase().includes('duplicate key');
         if (isUniqueViolation) return false; // genuine replay — reject
         throw err;                           // infra error — caller returns 500
     }
@@ -106,7 +104,7 @@ async function consumeAuthNonce(nonce: string, publicKey: string): Promise<boole
  * Migration path: if user.devicePublicKey is NULL, the device must already
  * exist in the devices table (verified bootstrap, NOT a cryptographic fallback)
  */
-export async function requireAuth(req: Request, res: Response, next: NextFunction) {
+export async function requireAuth(req: Request, res: Response, next: NextFunction): Promise<Response | void> {
     // ── 1. Extract and validate all required headers ───────────────────────
     const publicKey    = req.headers['x-public-key']     as string;
     const timestamp    = req.headers['x-timestamp']      as string;
@@ -283,7 +281,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
  * This is NOT a security downgrade — the route's identity-signature check is
  * equivalent to a TOFU proof that the requester controls the account's signing key.
  */
-export async function requireAuthBootstrap(req: Request, res: Response, next: NextFunction) {
+export async function requireAuthBootstrap(req: Request, res: Response, next: NextFunction): Promise<Response | void> {
     const publicKey    = req.headers['x-public-key']    as string;
     const timestamp    = req.headers['x-timestamp']     as string;
     const signature    = req.headers['x-signature']     as string;

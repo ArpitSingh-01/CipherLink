@@ -154,14 +154,15 @@ export function registerDeviceRoutes(app: Express): void {
       });
 
       res.json(device);
-    } catch (error: any) {
-      if (error?.message?.includes('Maximum device limit')) {
-        return res.status(409).json({ error: error.message });
+    } catch (error) {
+      const err = error as any;
+      if (err?.message?.includes('Maximum device limit')) {
+        return res.status(409).json({ error: err.message });
       }
       const isDuplicate =
-        error?.code === '23505' ||
-        error?.message?.toLowerCase().includes('unique') ||
-        error?.message?.toLowerCase().includes('duplicate key');
+        err?.code === '23505' ||
+        err?.message?.toLowerCase().includes('unique') ||
+        err?.message?.toLowerCase().includes('duplicate key');
       if (isDuplicate) {
         return res.status(409).json({ error: "Device already registered" });
       }
@@ -314,9 +315,10 @@ export function registerDeviceRoutes(app: Express): void {
       });
 
       res.json(device);
-    } catch (error: any) {
-      if (error?.message?.includes('Maximum device limit')) {
-        return res.status(409).json({ error: error.message });
+    } catch (error) {
+      const err = error as any;
+      if (err?.message?.includes('Maximum device limit')) {
+        return res.status(409).json({ error: err.message });
       }
       logError('registerChallenged', error);
       res.status(500).json({ error: "Internal server error" });

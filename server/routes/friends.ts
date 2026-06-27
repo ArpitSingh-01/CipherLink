@@ -71,8 +71,9 @@ export function registerFriendRoutes(app: Express): void {
         });
 
         notifyFriendEvent(result.friendPublicKey, 'friend_request');
-      } catch (err: any) {
-        const msg = err?.message || '';
+      } catch (err) {
+        const error = err as any;
+        const msg = error?.message || '';
         if (msg.includes('Invalid') || msg.includes('expired')) {
           return res.status(400).json({ error: "Invalid code" });
         }

@@ -468,15 +468,16 @@ export class SupabaseStorage implements IStorage {
         .returning();
 
       return result[0];
-    } catch (error: any) {
+    } catch (error) {
+      const err = error as any;
       // Postgres unique constraint violation → emit DUPLICATE_MESSAGE code
-      if (error?.code === '23505') {
+      if (err?.code === '23505') {
         throw Object.assign(
           new Error('Duplicate message'),
           { code: 'DUPLICATE_MESSAGE' }
         );
       }
-      logError('createMessage', error);
+      logError('createMessage', err);
       throw error;
     }
   }
@@ -909,7 +910,7 @@ export class SupabaseStorage implements IStorage {
     try {
       const existingUser = await this.getUser(newPublicKey);
       if (existingUser) {
-        const err: any = new Error('Public key already registered to another account');
+        const err = new Error('Public key already registered to another account') as Error & { code?: string };
         err.code = '23505';
         throw err;
       }

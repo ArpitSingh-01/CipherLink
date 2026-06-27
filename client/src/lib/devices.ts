@@ -1,6 +1,7 @@
 import { generateEd25519KeyPair, getDeviceName } from './crypto';
 import { getDeviceIdentity, saveDeviceIdentity, getIdentity, getDB } from './storage';
 import { authenticatedFetch } from './auth';
+import type { Device } from '@shared/schema';
 
 import { ed25519 } from '@noble/curves/ed25519.js';
 
@@ -84,7 +85,7 @@ export async function ensureDeviceRegistered(): Promise<void> {
 /**
  * Fetches the list of active devices for the current user.
  */
-export async function getActiveDevices(): Promise<any[]> {
+export async function getActiveDevices(): Promise<Device[]> {
     const response = await authenticatedFetch('/api/devices');
     if (!response.ok) {
         throw new Error('Failed to fetch devices');
@@ -124,7 +125,7 @@ const SEEN_DEVICES_SETTINGS_KEY = 'seen_device_keys';
  *
  * @returns Array of device objects for new, unacknowledged devices.
  */
-export async function detectNewDevices(): Promise<any[]> {
+export async function detectNewDevices(): Promise<Device[]> {
     const activeDevices = await getActiveDevices();
     const db = await getDB();
     const seenRaw = await db.get('settings', SEEN_DEVICES_SETTINGS_KEY);

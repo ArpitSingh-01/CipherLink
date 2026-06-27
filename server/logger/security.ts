@@ -18,7 +18,7 @@ interface SecurityEvent {
 // In-memory tracking for alerting (in production, use Redis or similar)
 const recentEvents = new Map<string, number[]>();
 
-export function logSecurityEvent(event: Omit<SecurityEvent, 'timestamp'>) {
+export function logSecurityEvent(event: Omit<SecurityEvent, 'timestamp'>): void {
   const fullEvent: SecurityEvent = {
     ...event,
     // Truncate public key to first 16 chars in logs — sufficient for debugging

@@ -649,9 +649,9 @@ export async function getSetting<T>(key: string): Promise<T | undefined> {
 
 // ── DOUBLE RATCHET SESSIONS (//) ─────────────────────────────────────────────
 
-export async function saveRatchetSession(sessionId: string, session: any): Promise<void> {
+export async function saveRatchetSession(sessionId: string, session: unknown): Promise<void> {
   if (isSessionOnlyMode) {
-    sessionRatchetStore.set(sessionId, session);
+    sessionRatchetStore.set(sessionId, session as string);
     return;
   }
 
@@ -675,7 +675,7 @@ export async function saveRatchetSession(sessionId: string, session: any): Promi
   }
 }
 
-export async function getRatchetSession(sessionId: string): Promise<any | undefined> {
+export async function getRatchetSession(sessionId: string): Promise<unknown | undefined> {
   // Check memory store first for session-only mode
   if (isSessionOnlyMode || !sessionIdentity) {
     return sessionRatchetStore.get(sessionId);

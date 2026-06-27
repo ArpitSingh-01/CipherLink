@@ -141,7 +141,7 @@ export function registerLinkingRoutes(app: Express): void {
           identitySignature,
           deviceName: request.deviceName || deviceName || 'Linked Device',
         });
-      } catch (regErr: any) {
+      } catch (regErr) {
         logError('deviceAutoRegistrationOnApprove', regErr);
       }
 

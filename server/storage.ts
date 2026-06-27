@@ -379,7 +379,7 @@ export class MemStorage implements IStorage {
               const existingPayloads = JSON.parse(msg.encryptedPayloads);
               return msg.senderPublicKey === normalizedSender &&
                 Array.isArray(existingPayloads) &&
-                existingPayloads.some((p: any) => p.nonce === payload.nonce);
+                existingPayloads.some((p: { nonce?: string }) => p.nonce === payload.nonce);
             }
           );
           if (isDuplicate) {

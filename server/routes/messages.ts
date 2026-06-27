@@ -127,8 +127,9 @@ export function registerMessageRoutes(app: Express): void {
       res.json({ success: true, messageId: message.id });
 
       notifyNewMessage(receiverPublicKey, senderPublicKey);
-    } catch (error: any) {
-      if (error?.code === 'DUPLICATE_MESSAGE') {
+    } catch (error) {
+      const err = error as any;
+      if (err?.code === 'DUPLICATE_MESSAGE') {
         logSecurityEvent({
           type: 'replay_attempt',
           publicKey: req.authPublicKey!,

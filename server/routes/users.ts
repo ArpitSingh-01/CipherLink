@@ -62,11 +62,12 @@ export function registerUserRoutes(app: Express): void {
       });
 
       res.json({ success: true });
-    } catch (error: any) {
+    } catch (error) {
+      const err = error as any;
       if (
-        error?.code === '23505' ||
-        error?.message?.includes('duplicate') ||
-        error?.message?.includes('unique')
+        err?.code === '23505' ||
+        err?.message?.includes('duplicate') ||
+        err?.message?.includes('unique')
       ) {
         return res.status(409).json({ error: 'Public key already registered to another account' });
       }

@@ -6,7 +6,7 @@ import type { Request, Response, NextFunction } from 'express';
  * Checks request size BEFORE authentication to prevent DoS attacks
  * where attackers send large payloads with invalid signatures.
  */
-export function requestSizeLimit(maxSize: number) {
+export function requestSizeLimit(maxSize: number): (req: Request, res: Response, next: NextFunction) => void | Response {
   return (req: Request, res: Response, next: NextFunction) => {
     // Check Content-Length header first (fast rejection)
     const contentLength = parseInt(req.headers['content-length'] || '0');
@@ -21,7 +21,7 @@ export function requestSizeLimit(maxSize: number) {
     let bodySize = 0;
     const originalOn = req.on.bind(req);
     
-    req.on = function(event: string, listener: any) {
+    req.on = function(event: string, listener: (...args: any[]) => void) {
       if (event === 'data') {
         return originalOn('data', (chunk: Buffer) => {
           bodySize += chunk.length;

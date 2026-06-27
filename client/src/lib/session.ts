@@ -24,7 +24,7 @@ export async function loadSession(localPub: Uint8Array, remotePub: Uint8Array): 
   const sessionId = getSessionId(localPub, remotePub);
   const stored = await getRatchetSession(sessionId);
   if (stored) {
-    return deserializeSessionState(stored);
+    return deserializeSessionState(stored as string);
   }
   return undefined;
 }
