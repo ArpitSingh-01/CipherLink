@@ -5,6 +5,7 @@ import rateLimit from "express-rate-limit";
 import cors from "cors";
 import { registerRoutes } from "./routes/index";
 import { serveStatic } from "./static";
+import { config } from "./config";
 import { createServer } from "http";
 import { startCleanupJob, stopCleanupJob } from "./cleanup";
 import { closeDatabase } from "./db";
@@ -27,15 +28,11 @@ declare module "http" {
 }
 
 // CORS configuration - strictly restrict origins in production
-const corsOrigins = process.env.ALLOWED_ORIGINS
-  ? process.env.ALLOWED_ORIGINS.split(',').map(s => s.trim())
-  : undefined;
-
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production'
+  origin: config.isProd
     ? (origin, callback) => {
       // SEC-16: Remove !origin bypass — no credentialed requests from server-side/no-origin callers
-      if (origin && corsOrigins && corsOrigins.includes(origin)) {
+      if (origin && config.cors.origins.includes(origin)) {
         callback(null, true);
       } else {
         callback(new Error('Not allowed by CORS'));
@@ -47,7 +44,7 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Public-Key', 'X-Timestamp', 'X-Signature', 'X-Device-Key', 'X-Request-Nonce', 'X-Link-Signature'],
 }));
 
-const isDev = process.env.NODE_ENV !== 'production';
+
 
 // SEC-FIX: Apply per-IP rate limiting globally (before other middleware)
 app.use(perIPLimiter);
@@ -58,7 +55,7 @@ app.use('/api/messages', requestSizeLimit(150 * 1024)); // 150KB max for message
 
 // Security headers - relaxed in development for Vite HMR
 app.use(helmet({
-  contentSecurityPolicy: isDev
+  contentSecurityPolicy: config.isDev
     ? {
       directives: {
         defaultSrc: ["'self'"],
@@ -79,7 +76,7 @@ app.use(helmet({
         fontSrc: ["'self'", "https://fonts.gstatic.com"],
       },
     },
-  hsts: !isDev
+  hsts: !config.isDev
     ? { maxAge: 31536000, includeSubDomains: true, preload: true }
     : false,
   crossOriginEmbedderPolicy: false,
@@ -88,7 +85,7 @@ app.use(helmet({
 // Rate limiting for API endpoints
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: process.env.NODE_ENV === 'production' ? 100 : 1000,
+  max: config.isProd ? 100 : 1000,
   message: 'Too many requests from this IP, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
@@ -143,7 +140,7 @@ app.use((req, res, next) => {
     // SEC-HARDEN: Do not re-throw — would crash the process
     // Wrap console.error to prevent crashes if logging fails
     try {
-      if (process.env.NODE_ENV !== 'production') {
+      if (config.isDev) {
         console.error('Unhandled error:', err);
       }
     } catch {
@@ -154,7 +151,7 @@ app.use((req, res, next) => {
   // importantly only setup vite in development and after
   // setting up all the other routes so the catch-all route
   // doesn't interfere with the other routes
-  if (process.env.NODE_ENV === "production") {
+  if (config.isProd) {
     serveStatic(app);
   } else {
     const { setupVite } = await import("./vite");
@@ -163,23 +160,13 @@ app.use((req, res, next) => {
 
   // FIX 3: Only run setInterval in non-Vercel environments (local dev / traditional VPS)
   // On Vercel, cleanup is handled by the /api/internal/cleanup cron endpoint
-  if (process.env.VERCEL !== '1') {
+  if (!config.isVercel) {
     startCleanupJob();
   }
 
-  // FIX 10: In production, CRON_SECRET must be set or the cleanup endpoint is unprotected
-  if (process.env.NODE_ENV === 'production' && !process.env.CRON_SECRET) {
-    console.error('FATAL: CRON_SECRET must be set in production. Exiting.');
-    process.exit(1);
-  }
-
-  // ALWAYS serve the app on the port specified in the environment variable PORT
-  // Other ports are firewalled. Default to 5000 if not specified.
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = parseInt(process.env.PORT || "5000", 10);
-  httpServer.listen(port, "0.0.0.0", () => {
-    log(`serving on port ${port}`);
+  // ALWAYS serve the app on the port specified in config.port
+  httpServer.listen(config.port, "0.0.0.0", () => {
+    log(`serving on port ${config.port}`);
   });
 
   // Graceful shutdown handling

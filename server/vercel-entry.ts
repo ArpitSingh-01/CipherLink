@@ -2,10 +2,11 @@ import express, { type Request, Response, NextFunction } from "express";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import cors from "cors";
-import { registerRoutes } from "./routes";
+import { registerRoutes } from "./routes/index";
 import { requestSizeLimit } from "./middleware/sizeLimit";
 import { perIPLimiter } from "./middleware/rateLimitPerIP";
 import { cleanupExpiredData } from "./cleanup";
+import { config as serverConfig } from "./config";
 
 const app = express();
 
@@ -13,8 +14,8 @@ const app = express();
 app.set('trust proxy', 1);
 
 // CORS configuration
-const corsOrigins = process.env.ALLOWED_ORIGINS
-  ? process.env.ALLOWED_ORIGINS.split(',').map(s => s.trim())
+const corsOrigins = serverConfig.cors.origins.length > 0
+  ? serverConfig.cors.origins
   : ['http://localhost:5000'];
 
 app.use(cors({

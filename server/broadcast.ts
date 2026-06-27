@@ -16,13 +16,10 @@
  */
 
 import { log } from './log';
+import { config } from './config';
 
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
-// BUG-12 FIX: Prefer service role key for server-to-server broadcast REST calls.
-// The anon key is a publishable client-side credential and may be rate-limited.
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const AUTH_KEY = SUPABASE_SERVICE_KEY || SUPABASE_ANON_KEY;
+const SUPABASE_URL = config.supabase.url;
+const AUTH_KEY = config.supabase.serviceKey || config.supabase.anonKey;
 
 // Validate at startup — at minimum the anon key must be set
 if (!SUPABASE_URL || !AUTH_KEY) {

@@ -2,7 +2,9 @@ import { db } from './db';
 import { messages, friendCodes, prekeyBundles, deviceChallenges, authNonces, linkingRequests } from '@shared/schema';
 import { lt, or, eq } from 'drizzle-orm';
 
-const isDev = process.env.NODE_ENV !== 'production';
+import { config } from './config';
+import { logError } from './utils/log';
+
 let cleanupInterval: NodeJS.Timeout | null = null;
 
 /**
@@ -64,10 +66,10 @@ export async function cleanupExpiredData(): Promise<{ deletedMessages: number; d
     const duration = endTime - startTime;
 
     if (deletedMessages.length > 0 || deletedCodes.length > 0) {
-      if (isDev) {
-        console.log(
+      if (config.isDev) {
+        process.stdout.write(
           `Cleanup completed in ${duration}ms: ` +
-          `${deletedMessages.length} messages, ${deletedCodes.length} friend codes deleted`
+          `${deletedMessages.length} messages, ${deletedCodes.length} friend codes deleted\n`
         );
       }
     }
@@ -77,7 +79,7 @@ export async function cleanupExpiredData(): Promise<{ deletedMessages: number; d
       deletedCodes: deletedCodes.length,
     };
   } catch (error) {
-    if (isDev) console.error('Cleanup job failed:', error);
+    logError('cleanupExpiredData', error);
     throw error;
   }
 }
@@ -88,44 +90,29 @@ export async function cleanupExpiredData(): Promise<{ deletedMessages: number; d
  */
 export function startCleanupJob(): void {
   if (cleanupInterval) {
-    if (isDev) console.warn('Cleanup job already running');
+    if (config.isDev) {
+      process.stdout.write('Cleanup job already running\n');
+    }
     return;
   }
 
-  if (isDev) console.log('Starting cleanup job (runs every 60 seconds)');
+  if (config.isDev) {
+    process.stdout.write('Starting cleanup job (runs every 60 seconds)\n');
+  }
 
   // Run immediately on startup - don't set interval if initial cleanup fails critically
   cleanupExpiredData().catch(err => {
-    if (isDev) {
-      try {
-        console.error('Initial cleanup failed:', err);
-      } catch {
-        // Ignore logging errors
-      }
-    }
+    logError('initialCleanup', err);
   });
 
   // Then run every 60 seconds - wrap in try-catch to prevent interval crashes
   cleanupInterval = setInterval(() => {
     try {
       cleanupExpiredData().catch(err => {
-        if (isDev) {
-          try {
-            console.error('Scheduled cleanup failed:', err);
-          } catch {
-            // Ignore logging errors
-          }
-        }
+        logError('scheduledCleanup', err);
       });
     } catch (err) {
-      // Catch synchronous errors to prevent interval from stopping
-      if (isDev) {
-        try {
-          console.error('Cleanup interval error:', err);
-        } catch {
-          // Ignore logging errors
-        }
-      }
+      logError('cleanupInterval', err);
     }
   }, 60000);
 }
@@ -137,6 +124,8 @@ export function stopCleanupJob(): void {
   if (cleanupInterval) {
     clearInterval(cleanupInterval);
     cleanupInterval = null;
-    if (isDev) console.log('Cleanup job stopped');
+    if (config.isDev) {
+      process.stdout.write('Cleanup job stopped\n');
+    }
   }
 }

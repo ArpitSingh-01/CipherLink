@@ -4,6 +4,7 @@
  * Logs security-relevant events for monitoring and incident response.
  * In production, these should be sent to a centralized logging service.
  */
+import { config } from '../config';
 
 interface SecurityEvent {
   type: 'auth_failure' | 'replay_attempt' | 'invalid_input' | 'rate_limit' | 'duplicate_message' | 'key_rotation' | 'device_management';
@@ -26,7 +27,7 @@ export function logSecurityEvent(event: Omit<SecurityEvent, 'timestamp'>) {
   };
   
   // Log to console (in production, send to logging service)
-  if (process.env.NODE_ENV !== 'production') {
+  if (config.isDev) {
     console.warn('[SECURITY]', JSON.stringify(fullEvent));
   } else {
     // FIX 5-A: In production, emit ONLY type + severity — no IP, UA, or key material.

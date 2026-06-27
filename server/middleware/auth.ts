@@ -1,6 +1,7 @@
 import { ed25519 } from '@noble/curves/ed25519.js';
 import { createHash, randomInt } from 'crypto';
 import type { Request, Response, NextFunction } from 'express';
+import { config } from '../config';
 import { storage } from '../storage';
 import { logSecurityEvent } from '../logger/security';
 import type { User } from '@shared/schema';
@@ -226,7 +227,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
             nonceOk = await consumeAuthNonce(nonceKey, normalizedKey);
         } catch (nonceErr) {
             // Infrastructure error — NOT a replay. Must return 500.
-            if (process.env.NODE_ENV !== 'production') {
+            if (config.isDev) {
                 console.error('[Auth] Nonce storage error (infra — not a replay):', nonceErr);
             }
             return res.status(500).json({ error: 'Internal server error' });
@@ -257,7 +258,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     } catch (error) {
         // Genuine infrastructure failure — distinguish from auth failure.
         // Do NOT return 401 here; that would falsely imply a bad credential.
-        if (process.env.NODE_ENV !== 'production') {
+        if (config.isDev) {
             console.error('[Auth] Infrastructure error:', error);
         }
         return res.status(500).json({ error: 'Internal server error' });
@@ -342,7 +343,7 @@ export async function requireAuthBootstrap(req: Request, res: Response, next: Ne
         try {
             nonceOk = await consumeAuthNonce(nonceKey, normalizedKey);
         } catch (nonceErr) {
-            if (process.env.NODE_ENV !== 'production') {
+            if (config.isDev) {
                 console.error('[Auth Bootstrap] Nonce storage error:', nonceErr);
             }
             return res.status(500).json({ error: 'Internal server error' });
@@ -356,7 +357,7 @@ export async function requireAuthBootstrap(req: Request, res: Response, next: Ne
         next();
 
     } catch (error) {
-        if (process.env.NODE_ENV !== 'production') {
+        if (config.isDev) {
             console.error('[Auth Bootstrap] Infrastructure error:', error);
         }
         return res.status(500).json({ error: 'Internal server error' });
