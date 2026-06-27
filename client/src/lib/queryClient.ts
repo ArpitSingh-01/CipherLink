@@ -37,7 +37,7 @@ export const getQueryFn: <T>(options: {
   ({ on401: unauthorizedBehavior }) =>
     async ({ queryKey }) => {
       const url = queryKey.join("/") as string;
-      // SEC-FIX: All authenticated GET requests must include signed auth headers.
+      // All authenticated GET requests must include signed auth headers.
       // createAuthHeaders returns {} if identity is not yet unlocked (handled by on401).
       const authHeaders = await createAuthHeaders('GET', url, '');
       const res = await fetch(url, {

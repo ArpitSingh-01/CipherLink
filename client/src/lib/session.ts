@@ -47,8 +47,8 @@ export async function initSession(
   // simplification: both sides use the same X25519 key for IKb and SPKb.
   //
   // DH commutativity property (requires Curve25519 on both sides):
-  //   DH(IKa_priv, SPKb_pub) = DH(SPKb_priv, IKa_pub)
-  //   Only holds when IKa and SPKb are both X25519 keys.
+  // DH(IKa_priv, SPKb_pub) = DH(SPKb_priv, IKa_pub)
+  // Only holds when IKa and SPKb are both X25519 keys.
 
   let session: SessionState;
   let ephemeralPair: { privateKey: Uint8Array; publicKey: Uint8Array } | null = null;
@@ -67,7 +67,7 @@ export async function initSession(
         null,                             // preKeySignature — skipped (SPKb=IKb is self-evident)
         null,                             // remoteIdentitySignPub — no separate Ed25519 check here
         localIdentityKeyPair.publicKey,   // localDevicePublicKey (session storage key = X25519 identity)
-        remoteIdentityPub,                // remoteDevicePublicKey (session storage key = remote X25519 identity) — BUG-1 FIX
+        remoteIdentityPub,                // remoteDevicePublicKey (session storage key = remote X25519 identity) — 
         undefined,                        // senderEphemeralPub — initiator generates, does not receive
         true                              // explicitIsInitiator — we are the initiator
       );
@@ -75,8 +75,8 @@ export async function initSession(
       // RESPONDER path
       // Since SPKb = IKb (our X3DH simplification), SPKb_priv = IKb_priv = localIdentityKeyPair.privateKey.
       // The ratchet responder ACTIVELY uses localEphemeralPriv for:
-      //   RDH1 = DH(localEphemeralPriv, IKa_pub)   [= DH(SPKb_priv, IKa_pub)]
-      //   RDH3 = DH(localEphemeralPriv, EKa_pub)   [= DH(SPKb_priv, EKa_pub)]
+      // RDH1 = DH(localEphemeralPriv, IKa_pub)   [= DH(SPKb_priv, IKa_pub)]
+      // RDH3 = DH(localEphemeralPriv, EKa_pub)   [= DH(SPKb_priv, EKa_pub)]
       // Passing zeros here makes RDH1 ≠ initiator's DH1 → shared secret diverges.
       session = await arInit(
         localIdentityKeyPair.privateKey,  // IKb_priv — X25519 identity private key
@@ -91,13 +91,13 @@ export async function initSession(
         null,                             // preKeySignature — skipped
         null,                             // remoteIdentitySignPub — no separate Ed25519 check
         localIdentityKeyPair.publicKey,   // localDevicePublicKey (session storage key = X25519 identity)
-        remoteIdentityPub,                // remoteDevicePublicKey (session storage key = remote X25519 identity) — BUG-1 FIX
+        remoteIdentityPub,                // remoteDevicePublicKey (session storage key = remote X25519 identity) — 
         senderEphemeralPub,               // EKa_pub from the initiator's payload
         false                             // explicitIsInitiator=false — we are the RESPONDER
       );
     }
 
-    // BUG-1 FIX: Session is keyed by [localIdentityPub, remoteIdentityPub] (both X25519, sorted).
+    // Session is keyed by [localIdentityPub, remoteIdentityPub] (both X25519, sorted).
     // This ensures consistent session IDs across initiator and responder roles.
     const sessionId = getSessionId(localIdentityKeyPair.publicKey, remoteIdentityPub);
     await saveRatchetSession(sessionId, serializeSessionState(session));
@@ -128,9 +128,9 @@ export async function encryptRatchet(
 
 export async function decryptRatchet(
   session: SessionState,
-  encryptedData: EncryptedMessage   // BUG-14 FIX: typed, not `any`
+  encryptedData: EncryptedMessage   // typed, not `any`
 ): Promise<string> {
-  // FIX 3-F: Snapshot session state before mutation — if decryption fails,
+  // Snapshot session state before mutation — if decryption fails,
   // the ratchet state (chain keys, counters) may have been partially advanced.
   // Restoring the snapshot prevents permanent session corruption.
   const sessionId = getSessionId(session.localDevicePublicKey, session.remoteDevicePublicKey);
@@ -143,7 +143,7 @@ export async function decryptRatchet(
     // Restore in-memory state from snapshot
     const restored = deserializeSessionState(snapshot);
     Object.assign(session, restored);
-    // BUG-2 FIX: Also write snapshot back to IDB — ensures IDB matches in-memory after error
+    // Also write snapshot back to IDB — ensures IDB matches in-memory after error
     try { await saveRatchetSession(sessionId, snapshot); } catch { /* non-fatal */ }
     throw err;
   }

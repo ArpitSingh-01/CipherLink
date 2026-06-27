@@ -35,7 +35,7 @@ import { eq, and, or, lt, gt, asc, sql } from 'drizzle-orm';
 import type { IStorage } from './storage';
 import { logError } from './utils/log';
 
-// BUG-16 FIX: isDev removed � logError handles env detection internally
+// isDev removed � logError handles env detection internally
 
 export class SupabaseStorage implements IStorage {
   // In-memory typing indicators (ephemeral state)
@@ -77,7 +77,7 @@ export class SupabaseStorage implements IStorage {
       // Check if user already exists — idempotent registration
       const existing = await this.getUser(insertUser.publicKey);
       if (existing) {
-        // CRIT-B: No longer back-fill devicePublicKey here.
+        // No longer back-fill devicePublicKey here.
         // Device registration is a separate, challenge-bound operation.
         return existing;
       }
@@ -144,7 +144,7 @@ export class SupabaseStorage implements IStorage {
 
   async getFriendCodeByCode(code: string): Promise<FriendCode | undefined> {
     try {
-      // SEC-20: Single consistent query — no debug-only extra query that causes timing oracle
+      // Single consistent query — no debug-only extra query that causes timing oracle
       const now = new Date();
       const result = await db.select()
         .from(friendCodes)
@@ -304,7 +304,7 @@ export class SupabaseStorage implements IStorage {
       const normalizedUser = userPublicKey.toLowerCase().trim();
       const normalizedFriend = friendPublicKey.toLowerCase().trim();
 
-      // BUG-FIX (Bug 2): Only delete the requester's OWN pending row.
+      // BUG-FIX: Only delete the requester's OWN pending row.
       // Previously both sides were deleted, which destroyed the friend-code
       // creator's already-accepted friendship entry when the recipient declined.
       // The friend-code creator's `accepted` row must be preserved — their local
@@ -356,7 +356,7 @@ export class SupabaseStorage implements IStorage {
     try {
       const k1 = publicKey1.toLowerCase().trim();
       const k2 = publicKey2.toLowerCase().trim();
-      // BUG-17 FIX: Parallel lightweight select queries checking each direction separately.
+      // Parallel lightweight select queries checking each direction separately.
       // This only fetches the ID column and limits to 1 row, avoiding loading full row payloads.
       const [row1, row2] = await Promise.all([
         db.select({ id: friends.id }).from(friends).where(
@@ -369,11 +369,11 @@ export class SupabaseStorage implements IStorage {
       return row1.length > 0 && row2.length > 0;
     } catch (error) {
       logError('areMutualFriends', error);
-      return false; // BUG-3 FIX: Security gate � any failure denies the action (fail-closed)
+      return false; // Security gate � any failure denies the action (fail-closed)
     }
   }
 
-  // SEC-FIX-7: Atomic friend code redemption using database transaction
+  // Atomic friend code redemption using database transaction
   async redeemFriendCode(code: string, redeemerPublicKey: string): Promise<{ friendPublicKey: string }> {
     const normalizedRedeemer = redeemerPublicKey.toLowerCase().trim();
 
@@ -469,7 +469,7 @@ export class SupabaseStorage implements IStorage {
 
       return result[0];
     } catch (error: any) {
-      // FIX 1-I: Postgres unique constraint violation → emit DUPLICATE_MESSAGE code
+      // Postgres unique constraint violation → emit DUPLICATE_MESSAGE code
       if (error?.code === '23505') {
         throw Object.assign(
           new Error('Duplicate message'),
@@ -795,7 +795,7 @@ export class SupabaseStorage implements IStorage {
       const normalizedUserKey = insertDevice.userPublicKey.toLowerCase().trim();
       const normalizedDeviceKey = insertDevice.devicePublicKey.toLowerCase().trim();
 
-      // SEC-FIX (Vuln 5.3): Enforce max 5 active devices per user to prevent DoS fanout
+      // (Vuln 5.3): Enforce max 5 active devices per user to prevent DoS fanout
       const existingDevices = await this.getDevices(normalizedUserKey);
       const activeCount = existingDevices.filter(d => !d.revoked).length;
       if (activeCount >= 5) {
@@ -867,10 +867,10 @@ export class SupabaseStorage implements IStorage {
     }
   }
 
-  // FIX 1-G: Alias for getUser — consistent interface
-    // BUG-10 FIX: getUserByPublicKey removed � use getUser() instead
+  // Alias for getUser — consistent interface
+    // getUserByPublicKey removed � use getUser() instead
 
-  // BUG-4 FIX: Batch display name lookup (single query instead of N+1)
+  // Batch display name lookup (single query instead of N+1)
   async getUsersDisplayNames(publicKeys: string[]): Promise<Map<string, string | null>> {
     if (publicKeys.length === 0) return new Map();
     try {
@@ -889,7 +889,7 @@ export class SupabaseStorage implements IStorage {
     }
   }
 
-  // FIX 1-G: Update the primary device key for a user (e.g., after revoking the primary)
+  // Update the primary device key for a user (e.g., after revoking the primary)
   async updateUserPrimaryDevice(userPublicKey: string, newDevicePublicKey: string): Promise<void> {
     try {
       const normalizedUser = userPublicKey.toLowerCase().trim();
@@ -975,7 +975,7 @@ export class SupabaseStorage implements IStorage {
           })
           .where(eq(users.publicKey, userPublicKey));
 
-        // P1-06: Delete all prekey bundles for the old identity
+        // Delete all prekey bundles for the old identity
         await tx.delete(prekeyBundles)
           .where(eq(prekeyBundles.identityPublicKey, userPublicKey));
 
@@ -1087,7 +1087,7 @@ export class SupabaseStorage implements IStorage {
   async consumeDeviceChallenge(challenge: string, userPublicKey: string): Promise<DeviceChallenge | undefined> {
     try {
       // Atomically mark as used and return — prevents race conditions
-      // P2-06: Moved userPublicKey validation into the WHERE clause (prevents challenge burning by others)
+      // Moved userPublicKey validation into the WHERE clause (prevents challenge burning by others)
       const now = new Date();
       const result = await db.update(deviceChallenges)
         .set({ used: true })

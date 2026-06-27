@@ -12,9 +12,9 @@ export const CIPHER_SUITE = "AES-256-GCM";
 // nonce domain separator (generated once per session in initSession, persisted in IDB).
 // This avoids confusion between two separate prefix sources.
 
-// ------------------------------------------------------------------
+// 
 // SECURE PERSISTENT SESSION STORAGE DESIGN & TOFU HOOKS
-// ------------------------------------------------------------------
+// 
 export interface IPersistentHooks {
   onIdentityObserved: (sessionId: string, identityFingerprint: string) => Promise<boolean>;
   onRatchetKeyObserved: (sessionId: string, ratchetKeyFingerprint: string) => Promise<boolean>;
@@ -82,7 +82,7 @@ export function deserializeSessionState(serialized: string): SessionState {
 
   return session as SessionState;
 }
-// ------------------------------------------------------------------
+// 
 
 // Deterministic Session ID generation
 export async function deriveSessionId(key1: Uint8Array, key2: Uint8Array, transcriptHash: Uint8Array): Promise<string> {
@@ -103,14 +103,14 @@ export async function deriveSessionId(key1: Uint8Array, key2: Uint8Array, transc
  * initSession — X3DH key agreement (Signal spec-correct).
  *
  * Initiator (remotePreKey != null):
- *   DH1 = DH(IKa,  SPKb)
- *   DH2 = DH(EKa,  IKb)
- *   DH3 = DH(EKa,  SPKb)
+ * DH1 = DH(IKa,  SPKb)
+ * DH2 = DH(EKa,  IKb)
+ * DH3 = DH(EKa,  SPKb)
  *
  * Responder (remotePreKey == null, senderEphemeralPub REQUIRED):
- *   DH1 = DH(SPKb, IKa)   ← mirrors initiator DH1
- *   DH2 = DH(IKb,  EKa)   ← mirrors initiator DH2
- *   DH3 = DH(SPKb, EKa)   ← mirrors initiator DH3
+ * DH1 = DH(SPKb, IKa)   ← mirrors initiator DH1
+ * DH2 = DH(IKb,  EKa)   ← mirrors initiator DH2
+ * DH3 = DH(SPKb, EKa)   ← mirrors initiator DH3
  *
  * Both sides produce identical sharedSecret = concat(DH1, DH2, DH3).
  *
@@ -171,7 +171,7 @@ export async function initSession(
     secureClear(rdh1); secureClear(rdh2); secureClear(rdh3);
   }
 
-  // P2-07: Signal spec initial root KDF with fixed F constant (32×0xFF) as IKM for extract phase.
+  // Signal spec initial root KDF with fixed F constant (32×0xFF) as IKM for extract phase.
   // kdfRoot(rootKey, dhOutput, info) uses rootKey as HKDF salt and dhOutput as IKM (Signal-correct).
   // For the bootstrap step, we use F||sharedSecret as the IKM.
   const F = new Uint8Array(32).fill(0xFF);
@@ -195,21 +195,21 @@ export async function initSession(
   //
   // Per the Signal spec (https://signal.org/docs/specifications/doubleratchet/):
   //
-  //   Alice (initiator):
-  //     DHs = GENERATE_DH()
-  //     DHr = bob_signed_prekey (SPKb)
-  //     RK, CKs = KDF_RK(SK, DH(DHs, DHr))     ← initial send chain
-  //     CKr = not yet set
+  // Alice (initiator):
+  // DHs = GENERATE_DH()
+  // DHr = bob_signed_prekey (SPKb)
+  // RK, CKs = KDF_RK(SK, DH(DHs, DHr))     ← initial send chain
+  // CKr = not yet set
   //
-  //   Bob (responder):
-  //     DHs = SPKb_pair                          ← NOT a fresh random key!
-  //     DHr = not yet set
-  //     RK = SK
-  //     CKs, CKr = not yet set
+  // Bob (responder):
+  // DHs = SPKb_pair                          ← NOT a fresh random key!
+  // DHr = not yet set
+  // RK = SK
+  // CKs, CKr = not yet set
   //
   // When Bob receives Alice's first message, he triggers dhRatchet:
-  //     DH(SPKb_priv, Alice_DHs_pub) = DH(Alice_DHs_priv, SPKb_pub)  [commutativity]
-  //     ⇒ KDF_RK(SK, DH_out) produces SAME (RK, CKr) as Alice's (RK, CKs)
+  // DH(SPKb_priv, Alice_DHs_pub) = DH(Alice_DHs_priv, SPKb_pub)  [commutativity]
+  // ⇒ KDF_RK(SK, DH_out) produces SAME (RK, CKr) as Alice's (RK, CKs)
   //
   // CRITICAL: If Alice uses the bootstrap chain directly (no DH ratchet) or
   // Bob uses a fresh random ratchet key instead of SPKb, the DH outputs diverge
@@ -273,8 +273,8 @@ export async function initSession(
 
   // TRANSCRIPT FIX: The transcript must be IDENTICAL on both initiator and responder.
   // The only key BOTH sides share a reference to is the initiator's ephemeral (EKa):
-  //   - Initiator holds it as localEphemeralPub
-  //   - Responder receives it as senderEphemeralPub
+  // Initiator holds it as localEphemeralPub
+  // Responder receives it as senderEphemeralPub
   // Using canonicalize(localEphemeral, senderEphemeral) diverges when the responder sets
   // localEphemeral = IKb_pub (SPKb), so we instead extract EKa directly by role.
   const initiatorEphKey = isInitiator
@@ -292,19 +292,19 @@ export async function initSession(
 
   const sessionId = await deriveSessionId(localIdentityPub, remoteIdentityPub, transcriptHash);
 
-  // FIX 4-A: Safe ephemeral fallback when hooks aren't registered yet (startup race)
+  // Safe ephemeral fallback when hooks aren't registered yet (startup race)
   // Instead of throwing (which crash-loops the app), use a permissive ephemeral trust
   // that auto-accepts all identities. This is safe because:
-  //   1. The session is ephemeral — no persistent trust decision is made
-  //   2. Once hooks are registered, subsequent sessions use real TOFU
-  //   3. A console warning alerts developers to fix the hook registration order
+  // 1. The session is ephemeral — no persistent trust decision is made
+  // 2. Once hooks are registered, subsequent sessions use real TOFU
+  // 3. A console warning alerts developers to fix the hook registration order
   if (!persistentHooks) {
     console.warn('[CipherLink] persistentHooks not set during initSession — using ephemeral TOFU fallback');
   }
 
   const remoteFp = await getIdentityFingerprint(remoteIdentityPub);
   if (persistentHooks) {
-    // P0-05: Pass real sessionId as the trust slot key
+    // Pass real sessionId as the trust slot key
     const fpAllowed = await persistentHooks.onIdentityObserved(sessionId, remoteFp);
     if (!fpAllowed) {
       throw new Error("MITM Protection: Identity rejected by persistent TOFU storage");
@@ -410,10 +410,10 @@ function commitNonce(session: SessionState, msgId: string): void {
   }
   session.seenNoncesSet.add(msgId);
   session.seenNoncesQueue.push(msgId);
-  // P1-02: Also enforce monotonic globalRecvMessageNumber as the eviction floor.
+  // Also enforce monotonic globalRecvMessageNumber as the eviction floor.
   // A replayed old message whose nonce was evicted from the FIFO set is caught here.
   // (globalRecvMessageNumber check in decryptMessage handles the main case;
-  //  this keeps the set bounded at 2000 for recent messages only.)
+  // this keeps the set bounded at 2000 for recent messages only.)
   if (session.seenNoncesQueue.length > 2000) {
     const evicted = session.seenNoncesQueue.shift()!;
     session.seenNoncesSet.delete(evicted);
@@ -430,7 +430,7 @@ export async function dhRatchet(session: SessionState, receivedRatchetKey: Uint8
     throw new Error("Invalid ratchet key: self key reuse detected");
   }
 
-  // FIX CRIT-5: Safe fallback when persistentHooks aren't registered yet (startup race).
+  // FIX Safe fallback when persistentHooks aren't registered yet (startup race).
   // dhRatchet can fire before chat-page.tsx mounts and calls setPersistentHooks().
   // Auto-allow is safe here — ratchet key observation is a secondary trust check;
   // the primary TOFU is the identity fingerprint verified during initSession().
@@ -457,7 +457,7 @@ export async function dhRatchet(session: SessionState, receivedRatchetKey: Uint8
   secureClear(session.rootKey);
   secureClear(session.ratchetPrivateKey);
 
-  // FIX 3-A: previousChainLength = number of messages sent in the CURRENT send chain,
+  // previousChainLength = number of messages sent in the CURRENT send chain,
   // NOT the receive chain. Using recvMessageNumber here corrupts skipped-message recovery.
   session.previousChainLength = session.sendMessageNumber;
   session.sendMessageNumber = 0;
@@ -504,7 +504,7 @@ export async function encryptMessage(
     };
 
     // 12-byte nonce: [4-byte random prefix][8-byte BigUint64 counter]
-    // P2-01: Use session-level nonce prefix to avoid multi-tab collision
+    // Use session-level nonce prefix to avoid multi-tab collision
     nonce = new Uint8Array(12);
     nonce.set(session.sessionNoncePrefix, 0);
     view(nonce).setBigUint64(4, BigInt(session.globalSendMessageNumber), false);
@@ -564,10 +564,10 @@ export async function decryptMessage(session: SessionState, message: EncryptedMe
   const parsedHeader = {
     ...message.header,
     // ratchetPubKey arrives in different forms depending on the path:
-    //   1. hex string (new format: bytesToHex before JSON)
-    //   2. base64 string (legacy format)
-    //   3. Uint8Array (in-memory, not serialized)
-    //   4. plain numeric object {0:1,...} (old JSON.stringify(Uint8Array) corruption)
+    // 1. hex string (new format: bytesToHex before JSON)
+    // 2. base64 string (legacy format)
+    // 3. Uint8Array (in-memory, not serialized)
+    // 4. plain numeric object {0:1,...} (old JSON.stringify(Uint8Array) corruption)
     ratchetPubKey: (() => {
       if (rawRatchetKey instanceof Uint8Array) return rawRatchetKey;
       if (typeof rawRatchetKey === 'string') {

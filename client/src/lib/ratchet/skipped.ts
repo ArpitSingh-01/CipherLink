@@ -10,8 +10,8 @@ export interface SkippedKey {
 
 // The original getSkippedMessageKeyStr is no longer used and is implicitly removed by the new functions.
 // function getSkippedMessageKeyStr(ratchetPubKey: Uint8Array, messageNumber: number): string {
-//   // Use key: `${ratchetPubKey}:${messageNumber}`
-//   return `${bytesToBase64(ratchetPubKey)}:${messageNumber}`;
+// // Use key: `${ratchetPubKey}:${messageNumber}`
+// return `${bytesToBase64(ratchetPubKey)}:${messageNumber}`;
 // }
 
 export const MAX_SKIP_PER_EPOCH = 200;

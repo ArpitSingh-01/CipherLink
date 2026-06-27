@@ -263,7 +263,7 @@ function AddFriendDialog({
 
   const redeemCodeMutation = useMutation({
     mutationFn: async () => {
-      // SEC-FIX-3: friendName removed from server request — stored locally only
+      // friendName removed from server request — stored locally only
       // Friend display names are relationship metadata that must never leave the device
       const response = await apiRequest('POST', '/api/friend-codes/redeem', {
         code: enteredCode.trim().toUpperCase(),
@@ -919,7 +919,7 @@ function EmptyFriends({ onAddFriend }: { onAddFriend: () => void }) {
   );
 }
 
-// ==================== BLOCKED USERS DIALOG ====================
+// ── BLOCKED USERS DIALOG ─────────────────────────────────────────────────────
 
 function BlockedUsersDialog({
   identityPublicKey,
@@ -1185,7 +1185,7 @@ export function ChatPage() {
     return () => clearInterval(syncFriendsInterval);
   }, [setLocation]);
 
-  // SEC-22: Session crypto version cleanup on identity load
+  // Session crypto version cleanup on identity load
   useEffect(() => {
     if (!state.identity) return;
 
@@ -1193,7 +1193,7 @@ export function ChatPage() {
     // This is essential for Vite HMR where the IDB upgrade callback doesn't re-fire.
     ensureSessionCryptoVersion().catch(e => console.warn('[CipherLink] ensureSessionCryptoVersion failed:', e));
 
-    // BUG-8 FIX: setPersistentHooks moved to App.tsx module level — no longer called here.
+    // setPersistentHooks moved to App.tsx module level — no longer called here.
     // The TOFU hooks are now registered before any component renders.
   }, [state.identity]);
 
@@ -1341,7 +1341,7 @@ export function ChatPage() {
               const localDevicePub = hexToBytes(deviceIdentity.publicKey);
               const peerDeviceHex = senderDevicePublicKey || msg.senderPublicKey;
               const peerPubForSession = hexToBytes(peerDeviceHex);
-              // BUG-1 FIX: Use remote IDENTITY key (X25519) for session lookup, NOT device key (Ed25519).
+              // Use remote IDENTITY key (X25519) for session lookup, NOT device key (Ed25519).
               // msg.senderPublicKey is the X25519 identity key — consistent with initSession.
               const peerIdentityForSession = hexToBytes(msg.senderPublicKey);
 
@@ -1536,7 +1536,7 @@ export function ChatPage() {
 
       // 2. Fetch all devices to encrypt for (fan-out)
       // Both the recipient's devices AND our other devices
-      // SEC-STABLE-01: Use authenticatedFetch — raw fetch() bypasses Ed25519 auth
+      // Use authenticatedFetch — raw fetch() bypasses Ed25519 auth
       // Use /api/users/:key/devices for arbitrary user lookups (friend devices);
       // use /api/devices for own-device query (locked to req.authPublicKey on server).
       const [friendDevicesRes, myDevicesRes] = await Promise.all([
@@ -1621,7 +1621,7 @@ export function ChatPage() {
         allDevicesToEncrypt.push({ devicePublicKey: state.selectedFriend.publicKey });
       }
 
-      // SEC-STABLE-02: Bound fan-out to prevent resource exhaustion
+      // Bound fan-out to prevent resource exhaustion
       const MAX_FANOUT_DEVICES = 20;
       if (allDevicesToEncrypt.length > MAX_FANOUT_DEVICES) {
         allDevicesToEncrypt.length = MAX_FANOUT_DEVICES;
@@ -1632,7 +1632,7 @@ export function ChatPage() {
       for (const device of allDevicesToEncrypt) {
         const devicePubBytes = hexToBytes(device.devicePublicKey);
 
-        // BUG-1 FIX: Use remote IDENTITY key (X25519) for session lookup, NOT device key (Ed25519).
+        // Use remote IDENTITY key (X25519) for session lookup, NOT device key (Ed25519).
         // Sessions are keyed by sort([localIdentityPub, remoteIdentityPub]) — both X25519.
         const isFriendDevice = friendDevices.some((fd: any) => fd.devicePublicKey === device.devicePublicKey);
         const peerIdentityForLookup = isFriendDevice ? remoteIdentityPub : localIdentityPub;
@@ -1641,8 +1641,8 @@ export function ChatPage() {
 
         if (!session) {
           // Determine the correct X25519 identity key for X3DH:
-          // - Friend's devices → friend's identity key (remoteIdentityPub)
-          // - Our own other devices → our identity key (localIdentityPub)
+          // Friend's devices → friend's identity key (remoteIdentityPub)
+          // Our own other devices → our identity key (localIdentityPub)
           const isFriendDevice = friendDevices.some((fd: any) => fd.devicePublicKey === device.devicePublicKey);
           const peerIdentityPub = isFriendDevice ? remoteIdentityPub : localIdentityPub;
 
@@ -1686,7 +1686,7 @@ export function ChatPage() {
 
       const expiresAt = new Date(Date.now() + ttl * 1000);
 
-      // SEC-FIX-4: expiresAt is no longer sent — server calculates it from ttlSeconds
+      // expiresAt is no longer sent — server calculates it from ttlSeconds
       await apiRequest('POST', '/api/messages', {
         senderPublicKey: state.identity.publicKey,
         receiverPublicKey: state.selectedFriend.publicKey,
@@ -1694,7 +1694,7 @@ export function ChatPage() {
         ttlSeconds: ttl,
       });
 
-      // SEC-09: Store generic indicator, not plaintext preview
+      // Store generic indicator, not plaintext preview
       await updateFriendLastMessage(
         state.selectedFriend.publicKey,
         'Encrypted message',
@@ -1720,7 +1720,7 @@ export function ChatPage() {
 
       setSentMessages(prev => [...prev, optimisticMsg]);
 
-      // SEC-21: Persist sent message for future decryption
+      // Persist sent message for future decryption
       saveSentMessage(optimisticMsg.id, data.message, state.selectedFriend?.publicKey || '', optimisticMsg.expiresAt.getTime()).catch(() => { });
 
       queryClientRef.invalidateQueries({
@@ -1912,7 +1912,7 @@ export function ChatPage() {
     }
   };
 
-  // SEC-DEVICE-01: Periodically check for new, unacknowledged devices registered to this account
+  // Periodically check for new, unacknowledged devices registered to this account
   useEffect(() => {
     if (!state.identity) return;
 
@@ -1967,7 +1967,7 @@ export function ChatPage() {
   const hasPendingLink = linkingRequests.length > 0;
 
   const handleLogout = async () => {
-    // SEC-06: Clear ALL data stores, not just identity
+    // Clear ALL data stores, not just identity
     await clearAllData();
     queryClient.clear();
     setState({ identity: null, selectedFriend: null, friends: [] });
@@ -2246,7 +2246,7 @@ export function ChatPage() {
         />
       )}
 
-      {/* SEC-01/SEC-22: Safety Number Changed Dialog */}
+      {/* /Safety Number Changed Dialog */}
       <AlertDialog
         open={!!safetyWarning}
         onOpenChange={(open) => !open && setSafetyWarning(null)}

@@ -1,25 +1,25 @@
 /**
- * WebSocket Notification Server — Authenticated (FIX 2-A)
+ * WebSocket Notification Server — Authenticated ()
  * 
  * Ed25519 challenge-response authentication replaces the previous
  * unauthenticated subscribe-by-publicKey model.
  * 
  * Protocol:
- *   1. Client connects to /ws/notifications?pk=<identityPublicKey>
- *   2. Server sends: {"type":"challenge","nonce":"<64 hex chars>"}
- *   3. Client signs nonce with their Ed25519 device private key and responds:
- *      {"type":"challenge_response","signature":"<128 hex>","devicePublicKey":"<64 hex>"}
- *   4. Server verifies: ed25519.verify(sig, nonce, devicePublicKey)
- *      AND confirms devicePublicKey belongs to the pk identity (via storage)
- *   5. On success: {"type":"connected"} — client is subscribed to notifications
- *   6. On failure: close(4003) — authentication failed
- *   7. On timeout (5s): close(4002) — authentication timeout
+ * 1. Client connects to /ws/notifications?pk=<identityPublicKey>
+ * 2. Server sends: {"type":"challenge","nonce":"<64 hex chars>"}
+ * 3. Client signs nonce with their Ed25519 device private key and responds:
+ * {"type":"challenge_response","signature":"<128 hex>","devicePublicKey":"<64 hex>"}
+ * 4. Server verifies: ed25519.verify(sig, nonce, devicePublicKey)
+ * AND confirms devicePublicKey belongs to the pk identity (via storage)
+ * 5. On success: {"type":"connected"} — client is subscribed to notifications
+ * 6. On failure: close(4003) — authentication failed
+ * 7. On timeout (5s): close(4002) — authentication timeout
  *
  * Security:
- *   - Per-IP connection limit (MAX_CONNS_PER_IP = 5)
- *   - 5-second auth timeout — unauthenticated sockets cannot linger
- *   - Only authenticated sockets receive notifications
- *   - NO message content flows through WebSocket — pure signal channel
+ * Per-IP connection limit (MAX_CONNS_PER_IP = 5)
+ * 5-second auth timeout — unauthenticated sockets cannot linger
+ * Only authenticated sockets receive notifications
+ * NO message content flows through WebSocket — pure signal channel
  */
 
 import { WebSocketServer, WebSocket } from 'ws';

@@ -26,7 +26,7 @@ function hexToBytes(hex: string): Uint8Array {
 }
 
 /**
- * SEC-FIX: Timing attack protection
+ * Timing attack protection
  */
 async function verifySignatureWithJitter(
     signature: Uint8Array,
@@ -49,7 +49,7 @@ async function verifySignatureWithJitter(
 }
 
 /**
- * SEC-FIX: Constant-time user lookup
+ * Constant-time user lookup
  */
 async function getUserConstantTime(publicKey: string): Promise<User | undefined> {
     const startTime = Date.now();
@@ -65,7 +65,7 @@ async function getUserConstantTime(publicKey: string): Promise<User | undefined>
 }
 
 /**
- * SEC-07: Auth nonce replay protection.
+ * Auth nonce replay protection.
  * Stores the nonce in the DB with a 5-min TTL; rejects duplicates atomically.
  * Falls back gracefully if DB is unavailable (to prevent auth bypass).
  */
@@ -77,7 +77,7 @@ async function consumeAuthNonce(nonce: string, publicKey: string): Promise<boole
         await db.insert(authNonces).values({ nonce, publicKey, expiresAt });
         return true; // new nonce, allow
     } catch (err: any) {
-        // SEC-FIX: Only treat unique-constraint violations as genuine replay attempts.
+        // Only treat unique-constraint violations as genuine replay attempts.
         // All other errors (timeouts, pool exhaustion, etc.) are infrastructure failures
         // that MUST be re-thrown so the caller can return 500, not a false 401.
         const isUniqueViolation =
@@ -93,18 +93,18 @@ async function consumeAuthNonce(nonce: string, publicKey: string): Promise<boole
  * Stateless cryptographic authentication middleware — zero-trust, device-centric.
  *
  * Required headers (ALL requests):
- *   X-Public-Key    — X25519 account identifier (hex, 64 chars)
- *   X-Timestamp     — Unix ms timestamp
- *   X-Device-Key    — Ed25519 device signing key (hex, 64 chars)
- *   X-Signature     — Ed25519 signature over: METHOD\nPATH\nSHA256(body)\nTIMESTAMP\nNONCE
- *   X-Request-Nonce — Random per-request nonce (hex, 64 chars)
+ * X-Public-Key    — X25519 account identifier (hex, 64 chars)
+ * X-Timestamp     — Unix ms timestamp
+ * X-Device-Key    — Ed25519 device signing key (hex, 64 chars)
+ * X-Signature     — Ed25519 signature over: METHOD\nPATH\nSHA256(body)\nTIMESTAMP\nNONCE
+ * X-Request-Nonce — Random per-request nonce (hex, 64 chars)
  *
  * Security model:
- *   - Ed25519 is ONLY used for signatures (device keys)
- *   - X25519 is ONLY used as the account identifier (never for sig verification)
- *   - EVERY request must carry X-Device-Key — no silent fallbacks
- *   - Migration path: if user.devicePublicKey is NULL, the device must already
- *     exist in the devices table (verified bootstrap, NOT a cryptographic fallback)
+ * Ed25519 is ONLY used for signatures (device keys)
+ * X25519 is ONLY used as the account identifier (never for sig verification)
+ * EVERY request must carry X-Device-Key — no silent fallbacks
+ * Migration path: if user.devicePublicKey is NULL, the device must already
+ * exist in the devices table (verified bootstrap, NOT a cryptographic fallback)
  */
 export async function requireAuth(req: Request, res: Response, next: NextFunction) {
     // ── 1. Extract and validate all required headers ───────────────────────
@@ -220,7 +220,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
 
         // ── 2d. Replay protection: consume nonce AFTER signature verified ──
         // Consuming before sig verification would allow nonce-burning DoS attacks.
-        // MED-1 FIX: Prefix with 'auth:' to namespace-separate from bootstrap nonces.
+        // Prefix with 'auth:' to namespace-separate from bootstrap nonces.
         const nonceKey = `auth:${normalizedKey}:${requestNonce}`;
         let nonceOk: boolean;
         try {
@@ -244,7 +244,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
         }
 
         // ── 2e. MIGRATION: back-fill user.devicePublicKey for legacy accounts ──
-        // HIGH-1 FIX: This must run AFTER both signature verification AND nonce
+        // This must run AFTER both signature verification AND nonce
         // consumption. Prior ordering allowed an attacker with the victim's X25519
         // public key to poison user.devicePublicKey before the sig check rejected them.
         // Idempotent: setUserDevicePublicKey is a no-op if key is already set.
@@ -271,14 +271,14 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
  * A brand-new device key cannot be in the devices table yet, so requireAuth
  * would always reject the registration call. This middleware verifies everything
  * that is knowable at registration time:
- *   ✅ Headers present & format correct
- *   ✅ Timestamp within window
- *   ✅ User account exists
- *   ✅ Ed25519 signature over standard message payload using X-Device-Key
- *   ✅ Nonce consumed (replay protection)
+ * ✅ Headers present & format correct
+ * ✅ Timestamp within window
+ * ✅ User account exists
+ * ✅ Ed25519 signature over standard message payload using X-Device-Key
+ * ✅ Nonce consumed (replay protection)
  *
  * The route itself then performs the definitive trust check:
- *   ✅ identity_signature: Ed25519 sign(devicePublicKey) with user's signing key
+ * ✅ identity_signature: Ed25519 sign(devicePublicKey) with user's signing key
  *
  * This is NOT a security downgrade — the route's identity-signature check is
  * equivalent to a TOFU proof that the requester controls the account's signing key.
@@ -337,7 +337,7 @@ export async function requireAuthBootstrap(req: Request, res: Response, next: Ne
             return res.status(401).json({ error: 'Invalid signature' });
         }
 
-        // MED-1 FIX: Prefix with 'bootstrap:' to namespace-separate from regular auth nonces.
+        // Prefix with 'bootstrap:' to namespace-separate from regular auth nonces.
         const nonceKey = `bootstrap:${normalizedKey}:${requestNonce}`;
         let nonceOk: boolean;
         try {

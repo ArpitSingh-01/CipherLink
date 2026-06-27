@@ -17,7 +17,7 @@ import { perIPLimiter } from "./middleware/rateLimitPerIP";
 const app = express();
 const httpServer = createServer(app);
 
-// SEC-08: Enable trust proxy so express-rate-limit gets real client IP
+// Enable trust proxy so express-rate-limit gets real client IP
 // when deployed behind Nginx/Cloudflare/etc.
 app.set('trust proxy', 1);
 
@@ -31,7 +31,7 @@ declare module "http" {
 app.use(cors({
   origin: config.isProd
     ? (origin, callback) => {
-      // SEC-16: Remove !origin bypass — no credentialed requests from server-side/no-origin callers
+      // Remove !origin bypass — no credentialed requests from server-side/no-origin callers
       if (origin && config.cors.origins.includes(origin)) {
         callback(null, true);
       } else {
@@ -46,10 +46,10 @@ app.use(cors({
 
 
 
-// SEC-FIX: Apply per-IP rate limiting globally (before other middleware)
+// Apply per-IP rate limiting globally (before other middleware)
 app.use(perIPLimiter);
 
-// SEC-FIX: Apply request size limit BEFORE authentication to prevent DoS
+// Apply request size limit BEFORE authentication to prevent DoS
 // This rejects large requests early, before expensive signature verification
 app.use('/api/messages', requestSizeLimit(150 * 1024)); // 150KB max for messages
 
@@ -115,7 +115,7 @@ app.use((req, res, next) => {
   res.on("finish", () => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
-      // SEC-10: Only log method, path, status, duration — never response bodies
+      // Only log method, path, status, duration — never response bodies
       log(`${req.method} ${path} ${res.statusCode} in ${duration}ms`);
     }
   });
@@ -158,7 +158,7 @@ app.use((req, res, next) => {
     await setupVite(httpServer, app);
   }
 
-  // FIX 3: Only run setInterval in non-Vercel environments (local dev / traditional VPS)
+  // Only run setInterval in non-Vercel environments (local dev / traditional VPS)
   // On Vercel, cleanup is handled by the /api/internal/cleanup cron endpoint
   if (!config.isVercel) {
     startCleanupJob();

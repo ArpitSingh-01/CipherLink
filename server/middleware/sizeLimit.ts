@@ -1,7 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 
 /**
- * SEC-FIX: Request size limit middleware
+ * Request size limit middleware
  * 
  * Checks request size BEFORE authentication to prevent DoS attacks
  * where attackers send large payloads with invalid signatures.

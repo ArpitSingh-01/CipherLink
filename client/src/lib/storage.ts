@@ -11,7 +11,7 @@ import {
   fingerprintIdentityKey,
 } from './crypto';
 
-// ==================== ENCRYPTED IDENTITY SCHEMA (SEC-05) ====================
+// ── ENCRYPTED IDENTITY SCHEMA () ─────────────────────────────────────────────
 
 interface EncryptedIdentityRecord {
   id: string; // 'current'
@@ -142,7 +142,7 @@ export async function getDB(): Promise<IDBPDatabase<CipherLinkDB>> {
   });
 }
 
-// ==================== SESSION-ONLY MODE (SEC-07) ====================
+// ── SESSION-ONLY MODE () ─────────────────────────────────────────────────────
 
 let sessionIdentity: (LocalIdentity & { localUsername: string }) | null = null;
 let isSessionOnlyMode = false;
@@ -163,7 +163,7 @@ export function getSessionOnlyMode(): boolean {
 /**
  * Zeroize all in-memory key material. Called on logout and beforeunload.
  *
- * IMPORTANT (FIX 3-B): JavaScript strings are IMMUTABLE — we cannot truly overwrite
+ * IMPORTANT (): JavaScript strings are IMMUTABLE — we cannot truly overwrite
  * sessionIdentity.privateKey in-place. The TextEncoder().encode() trick only zeros
  * a COPY of the string bytes. The original string remains in the JS heap until GC
  * collects it. This is a known limitation of JS-based cryptographic applications.
@@ -185,14 +185,14 @@ export function clearSessionMemory(): void {
   isSessionOnlyMode = false;
 }
 
-// ==================== PIN-ENCRYPTED IDENTITY (SEC-05) ====================
+// ── PIN-ENCRYPTED IDENTITY () ────────────────────────────────────────────────
 
 export async function saveIdentityEncrypted(
   identity: LocalIdentity & { localUsername: string },
   pin: string
 ): Promise<void> {
   if (isSessionOnlyMode) {
-    // SEC-07: Session-only mode — store only in memory, never persisted
+    // Session-only mode — store only in memory, never persisted
     sessionIdentity = identity;
     return;
   }
@@ -296,9 +296,9 @@ export async function clearIdentity(): Promise<void> {
   await database.clear('encryptedIdentity');
 }
 
-// ==================== DEVICE IDENTITY OPERATIONS ====================
+// ── DEVICE IDENTITY OPERATIONS ───────────────────────────────────────────────
 
-// P1-01: Generate and retrieve a non-extractable AES-GCM device encryption key
+// Generate and retrieve a non-extractable AES-GCM device encryption key
 async function getDeviceEncryptionKey(): Promise<CryptoKey> {
   const database = await getDB();
   let key = await database.get('deviceCryptoKey', 'dek');
@@ -392,7 +392,7 @@ export async function updateUsername(publicKey: string, username: string, pin: s
   }
 }
 
-// ==================== SENT MESSAGES (SEC-21) ====================
+// ── SENT MESSAGES () ─────────────────────────────────────────────────────────
 
 export async function saveSentMessage(
   id: string,
@@ -409,7 +409,7 @@ export async function saveSentMessage(
     return;
   }
 
-  // FIX 3-D: Fail closed — if no sessionIdentity is available, refuse to store
+  // Fail closed — if no sessionIdentity is available, refuse to store
   // rather than falling back to plaintext. An IDB dump must never yield readable content.
   if (!sessionIdentity) {
     throw new Error('Cannot persist message: identity not unlocked');
@@ -466,7 +466,7 @@ export async function clearExpiredSentMessages(): Promise<void> {
   }
 }
 
-// ==================== FRIEND OPERATIONS ====================
+// ── FRIEND OPERATIONS ────────────────────────────────────────────────────────
 
 export async function saveFriend(friend: LocalFriend): Promise<void> {
   if (isSessionOnlyMode) {
@@ -575,7 +575,7 @@ export async function detectIdentityKeyChange(publicKey: string): Promise<boolea
     await updateFriendVerification(publicKey, false);
     return true;
   } catch {
-    // FIX 3-E: Fail secure — if we can't verify, assume the key HAS changed
+    // Fail secure — if we can't verify, assume the key HAS changed
     // to force re-verification rather than silently allowing a compromised session
     return true;
   }
@@ -590,7 +590,7 @@ export async function deleteFriend(publicKey: string): Promise<void> {
   await database.delete('friends', publicKey);
 }
 
-// ==================== BLOCKLIST OPERATIONS ====================
+// ── BLOCKLIST OPERATIONS ─────────────────────────────────────────────────────
 
 export async function blockUser(publicKey: string): Promise<void> {
   if (isSessionOnlyMode) {
@@ -628,7 +628,7 @@ export async function getBlockedUsers(): Promise<string[]> {
   return blocked.map(b => b.publicKey);
 }
 
-// ==================== SETTINGS OPERATIONS ====================
+// ── SETTINGS OPERATIONS ──────────────────────────────────────────────────────
 
 export async function saveSetting<T>(key: string, value: T): Promise<void> {
   if (isSessionOnlyMode) {
@@ -647,7 +647,7 @@ export async function getSetting<T>(key: string): Promise<T | undefined> {
   return database.get('settings', key) as Promise<T | undefined>;
 }
 
-// ==================== DOUBLE RATCHET SESSIONS (SEC-02/SEC-05/SEC-07) ====================
+// ── DOUBLE RATCHET SESSIONS (//) ─────────────────────────────────────────────
 
 export async function saveRatchetSession(sessionId: string, session: any): Promise<void> {
   if (isSessionOnlyMode) {
@@ -686,7 +686,7 @@ export async function getRatchetSession(sessionId: string): Promise<any | undefi
     const record = await database.get('ratchetSessions', sessionId);
     if (!record) return undefined;
 
-    // If it's old unencrypted format (SEC-02 cleanup), record might not have iv/salt
+    // If it's old unencrypted format (cleanup), record might not have iv/salt
     if (!record.ciphertext || !record.iv || !record.salt) {
       console.warn("Found unencrypted session record. Deleting for security.");
       await database.delete('ratchetSessions', sessionId);
@@ -706,7 +706,7 @@ export async function getRatchetSession(sessionId: string): Promise<any | undefi
   }
 }
 
-// ==================== CLEAR ALL RATCHET SESSIONS ====================
+// ── CLEAR ALL RATCHET SESSIONS ───────────────────────────────────────────────
 
 /**
  * Wipes ALL ratchet sessions from IndexedDB.
@@ -722,7 +722,7 @@ export async function clearAllRatchetSessions(): Promise<void> {
   await database.clear('ratchetSessions');
 }
 
-// ==================== SESSION CRYPTO VERSION SENTINEL ====================
+// ── SESSION CRYPTO VERSION SENTINEL ──────────────────────────────────────────
 
 /**
  * Call once at app startup (after identity is loaded).
@@ -741,7 +741,7 @@ export async function ensureSessionCryptoVersion(): Promise<void> {
   }
 }
 
-// ==================== CLEAR ALL DATA (SEC-06) ====================
+// ── CLEAR ALL DATA () ────────────────────────────────────────────────────────
 
 export async function clearAllData(): Promise<void> {
   // Zeroize all in-memory key material first
@@ -754,11 +754,11 @@ export async function clearAllData(): Promise<void> {
   await database.clear('settings');
   await database.clear('sentMessages');
   await database.clear('ratchetSessions');
-  // FIX 3-C: Clear device identity and crypto key — previously leaked on logout
+  // Clear device identity and crypto key — previously leaked on logout
   await database.clear('deviceIdentity');
   await database.clear('deviceCryptoKey');
 
-  // FIX 3-C: Clear CipherLink-related localStorage keys
+  // Clear CipherLink-related localStorage keys
   try {
     localStorage.removeItem('cipherlink-session-crypto-version');
     localStorage.removeItem('cipherlink_cleanup_lock');
@@ -767,7 +767,7 @@ export async function clearAllData(): Promise<void> {
   } catch { /* localStorage may be unavailable in some contexts */ }
 }
 
-// ==================== SESSION-ONLY BEFOREUNLOAD (SEC-07 / HARDENED) ====================
+// ── SESSION-ONLY BEFOREUNLOAD (/ HARDENED) ───────────────────────────────────
 
 export function setupSessionOnlyCleanup(): void {
   if (isSessionOnlyMode) {
@@ -786,7 +786,7 @@ export async function hasIdentity(): Promise<boolean> {
   return hasEncryptedIdentity();
 }
 
-// ==================== BACKGROUND DB CLEANUP ====================
+// ── BACKGROUND DB CLEANUP ────────────────────────────────────────────────────
 import { now, secureClear } from './ratchet/crypto-helpers.js';
 
 export async function cleanupDatabase(): Promise<void> {
@@ -824,7 +824,7 @@ export async function cleanupDatabase(): Promise<void> {
   }
 }
 
-// FIX 4-C: Web Locks API-based cleanup coordination (replaces localStorage lock)
+// Web Locks API-based cleanup coordination (replaces localStorage lock)
 // Web Locks provides true cross-tab mutual exclusion without polling.
 
 let cleanupStarted = false;
@@ -865,7 +865,7 @@ export function startCleanupWorker() {
   }
 }
 
-// ==================== PIN BRUTE-FORCE RATE LIMITING (FIX 4-D) ====================
+// ── PIN BRUTE-FORCE RATE LIMITING () ─────────────────────────────────────────
 
 const PIN_ATTEMPTS_KEY = 'cipherlink-pin-attempts';
 const PIN_LOCKOUT_KEY = 'cipherlink-pin-lockout';

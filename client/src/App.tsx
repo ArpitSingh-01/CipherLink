@@ -9,7 +9,7 @@ import { ChatPage } from "@/components/chat-page";
 import NotFound from "@/pages/not-found";
 import { setPersistentHooks } from '@/lib/session';
 
-// BUG-8 FIX: Register TOFU persistent hooks at module level — BEFORE any component renders.
+// Register TOFU persistent hooks at module level — BEFORE any component renders.
 // This ensures persistentHooks is never null when dhRatchet or initSession fires,
 // eliminating the startup race where the old useEffect in chat-page.tsx ran too late.
 setPersistentHooks({

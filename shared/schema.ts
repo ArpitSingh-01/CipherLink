@@ -15,7 +15,7 @@ export const users = pgTable("users", {
   publicKeyIdx: index("users_public_key_idx").on(table.publicKey),
 }));
 
-// CRIT-B: InsertUser deliberately only carries publicKey.
+// InsertUser deliberately only carries publicKey.
 // Device registration is a SEPARATE, challenge-bound operation.
 export const insertUserSchema = createInsertSchema(users).pick({
   publicKey: true,
@@ -49,7 +49,7 @@ export type InsertFriendCode = z.infer<typeof insertFriendCodeSchema>;
 export type FriendCode = typeof friendCodes.$inferSelect;
 
 // Friends - mutual friendships with status
-// FIX 5: friendName removed — personal relationship metadata ("Mom", "Boss")
+// friendName removed — personal relationship metadata ("Mom", "Boss")
 // must only be stored locally on-device, never on the server
 export const friends = pgTable("friends", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),

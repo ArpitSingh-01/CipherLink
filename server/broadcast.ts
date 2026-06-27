@@ -7,10 +7,10 @@
  * local development.
  * 
  * Architecture:
- * - Server POSTs a tiny broadcast signal to Supabase Realtime REST API
- * - Supabase pushes it to all clients subscribed to that channel
- * - Clients invalidate their React Query cache and fetch fresh data
- * - NO message content flows through this channel — pure signal
+ * Server POSTs a tiny broadcast signal to Supabase Realtime REST API
+ * Supabase pushes it to all clients subscribed to that channel
+ * Clients invalidate their React Query cache and fetch fresh data
+ * NO message content flows through this channel — pure signal
  * 
  * This is a single HTTP POST per event — works perfectly in serverless.
  */
@@ -87,7 +87,7 @@ export function notifyNewMessage(receiverPublicKey: string, senderPublicKey: str
  */
 export function notifyFriendEvent(
   targetPublicKey: string,
-  eventType: 'friend_request' | 'friend_accepted' | 'typing' // BUG-9 FIX: added typing
+  eventType: 'friend_request' | 'friend_accepted' | 'typing' // added typing
 ): void {
   const normalizedKey = targetPublicKey.toLowerCase().trim();
   const channelTopic = `notifications:${normalizedKey}`;

@@ -111,7 +111,7 @@ export async function revokeDevice(devicePublicKey: string): Promise<void> {
     }
 }
 
-// ==================== NEW DEVICE DETECTION (SEC-DEVICE-01) ====================
+// ── NEW DEVICE DETECTION () ──────────────────────────────────────────────────
 
 const SEEN_DEVICES_SETTINGS_KEY = 'seen_device_keys';
 

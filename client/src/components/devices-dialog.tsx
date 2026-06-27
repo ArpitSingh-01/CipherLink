@@ -94,8 +94,8 @@ export function DevicesDialog() {
             const targetDeviceKey = request.device_public_key || request.devicePublicKey;
 
             // 1. Sign Bob's device key hex string with Alice's Ed25519 DEVICE private key.
-            //    Server verifies: ed25519.verify(sig, TextEncoder(devicePublicKey), aliceDevicePublicKey)
-            //    Bob also verifies client-side using aliceDevicePublicKey included in the payload.
+            // Server verifies: ed25519.verify(sig, TextEncoder(devicePublicKey), aliceDevicePublicKey)
+            // Bob also verifies client-side using aliceDevicePublicKey included in the payload.
             const { ed25519 } = await import('@noble/curves/ed25519.js');
             const msgBytes = new TextEncoder().encode(targetDeviceKey);
             const aliceDevicePrivBytes = hexToBytes(deviceIdentity.privateKey);
@@ -103,10 +103,10 @@ export function DevicesDialog() {
             const identitySignature = bytesToHex(sigBytes);
 
             // 2. Encrypt Alice's identity for Bob using a binding secret.
-            //    bindingSecret = HKDF(alicePublicKey, salt=bobDeviceKey, info='CipherLink-Device-Link-v1')
-            //    This is computable by BOTH sides:
-            //    - Alice knows her own publicKey and Bob's devicePublicKey (from the link request).
-            //    - Bob knows his own deviceKey and Alice's publicKey (= the targetUserKey Bob typed in).
+            // bindingSecret = HKDF(alicePublicKey, salt=bobDeviceKey, info='CipherLink-Device-Link-v1')
+            // This is computable by BOTH sides:
+            // Alice knows her own publicKey and Bob's devicePublicKey (from the link request).
+            // Bob knows his own deviceKey and Alice's publicKey (= the targetUserKey Bob typed in).
             const bobKeyBytes = hexToBytes(targetDeviceKey);
             const alicePubKeyBytes = hexToBytes(identity.publicKey);
             const bindingSecret = await hkdf(alicePubKeyBytes, bobKeyBytes, 'CipherLink-Device-Link-v1', 32);

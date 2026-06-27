@@ -225,7 +225,7 @@ function ConfirmPhraseStep({
 }) {
   const words = phrase.split(' ');
   const [selectedIndices] = useState(() => {
-    // SEC-03: Use crypto.getRandomValues instead of Math.random for index selection
+    // Use crypto.getRandomValues instead of Math.random for index selection
     const indices: number[] = [];
     const randomBytes = new Uint8Array(12);
     crypto.getRandomValues(randomBytes);
@@ -316,7 +316,7 @@ function ConfirmPhraseStep({
   );
 }
 
-// SEC-05: New PIN creation step
+// New PIN creation step
 function PinStep({
   onSetPin,
   onBack,
@@ -655,9 +655,9 @@ function LinkDeviceStep({ onBack, onComplete }: { onBack: () => void; onComplete
             const encryptedPayload = JSON.parse(data.encryptedIdentity);
 
             // 1. Derive the binding secret: HKDF(alicePublicKey, salt=bobDeviceKey)
-            //    - Alice (approver) knows her own publicKey and Bob's device key.
-            //    - Bob (us) knows alicePublicKey via targetUserKey and our own device key.
-            //    Both sides compute the same secret — no private key needed, no curve mismatch.
+            // Alice (approver) knows her own publicKey and Bob's device key.
+            // Bob (us) knows alicePublicKey via targetUserKey and our own device key.
+            // Both sides compute the same secret — no private key needed, no curve mismatch.
             const alicePubKeyBytes = hexToBytes(targetUserKey.toLowerCase().trim());
             const bindingSecret = await hkdf(alicePubKeyBytes, myDeviceKeyBytes, 'CipherLink-Device-Link-v1', 32);
 
@@ -665,9 +665,9 @@ function LinkDeviceStep({ onBack, onComplete }: { onBack: () => void; onComplete
             const identity = JSON.parse(identityJson);
 
             // 2. Verify Alice's Ed25519 signature over our device key hex string.
-            //    Alice now includes her Ed25519 device public key in the encrypted payload.
-            //    We MUST use that, NOT ed25519.getPublicKey(identity.privateKey) — that would
-            //    derive an Ed25519 key from Alice's X25519 scalar, which is completely wrong.
+            // Alice now includes her Ed25519 device public key in the encrypted payload.
+            // We MUST use that, NOT ed25519.getPublicKey(identity.privateKey) — that would
+            // derive an Ed25519 key from Alice's X25519 scalar, which is completely wrong.
             if (!identity.devicePublicKey) {
               throw new Error('Identity payload missing devicePublicKey — upgrade the approver device');
             }
@@ -678,9 +678,9 @@ function LinkDeviceStep({ onBack, onComplete }: { onBack: () => void; onComplete
             }
 
             // 3. Persist device keys locally. Identity (with PIN encryption) will be
-            //    saved in handleLinkPin after the user chooses their PIN. Do NOT call
-            //    setDecryptedIdentity here — that would cause state duplication and
-            //    the double-display-name issue.
+            // saved in handleLinkPin after the user chooses their PIN. Do NOT call
+            // setDecryptedIdentity here — that would cause state duplication and
+            // the double-display-name issue.
             await saveDeviceIdentity(myDeviceKey, deviceKeys.privateKey, getDeviceName());
 
             toast({ title: "Identity Linked!", description: "Identity successfully transferred." });
@@ -864,7 +864,7 @@ export function Onboarding() {
         await idb.put('settings', 'true', `device_registered_${savedDeviceId.publicKey}`);
       }
 
-      // SEC-07: clean up on tab close if session-only mode selected.
+      // clean up on tab close if session-only mode selected.
       setupSessionOnlyCleanup();
       setLocation('/chat');
     } catch (error) {
@@ -887,13 +887,13 @@ export function Onboarding() {
         localUsername: username,
       };
 
-      // SEC-05: Save encrypted with PIN
+      // Save encrypted with PIN
       await saveIdentityEncrypted(fullIdentity, userPin);
 
       // Also load into memory for immediate use
       await setDecryptedIdentity(fullIdentity);
 
-      // SEC-07: Set up session-only cleanup if enabled
+      // Set up session-only cleanup if enabled
       setupSessionOnlyCleanup();
 
       // Step 1: Register the account (identity public key only)

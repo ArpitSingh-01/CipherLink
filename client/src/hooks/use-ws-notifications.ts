@@ -5,10 +5,10 @@
  * Broadcast. Works everywhere — Vercel serverless, local dev, any host.
  * 
  * Architecture:
- * - Client subscribes to a per-user broadcast channel: `notifications:{publicKey}`
- * - Server POSTs a broadcast signal via Supabase REST API after storing a message
- * - Client receives the signal and invalidates React Query cache
- * - Client then fetches fresh data via authenticated HTTP (Ed25519 signed)
+ * Client subscribes to a per-user broadcast channel: `notifications:{publicKey}`
+ * Server POSTs a broadcast signal via Supabase REST API after storing a message
+ * Client receives the signal and invalidates React Query cache
+ * Client then fetches fresh data via authenticated HTTP (Ed25519 signed)
  * 
  * Security: NO message content flows through Supabase Realtime.
  * It's a pure signal channel. All actual data is fetched via

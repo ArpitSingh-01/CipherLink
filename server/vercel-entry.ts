@@ -10,7 +10,7 @@ import { config as serverConfig } from "./config";
 
 const app = express();
 
-// SEC-08: Enable trust proxy for Vercel
+// Enable trust proxy for Vercel
 app.set('trust proxy', 1);
 
 // CORS configuration

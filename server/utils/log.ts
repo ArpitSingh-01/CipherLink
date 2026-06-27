@@ -1,5 +1,5 @@
 /**
- * BUG-16 FIX: Shared error logging utility.
+ * Shared error logging utility.
  * Replaces all `if (isDev) console.error(...)` patterns in supabase-storage.ts.
  * 
  * In dev: logs full error for debugging.

@@ -25,9 +25,9 @@ function generateRequestNonce(): string {
  * must be saved locally (via saveDeviceIdentity) before making any authenticated call.
  *
  * Bootstrap sequence:
- *   1. generateEd25519KeyPair()  → save to IDB via saveDeviceIdentity()
- *   2. POST /api/devices/register  → sends X-Device-Key header (this key)
- *   3. Server looks up device in DB and verifies
+ * 1. generateEd25519KeyPair()  → save to IDB via saveDeviceIdentity()
+ * 2. POST /api/devices/register  → sends X-Device-Key header (this key)
+ * 3. Server looks up device in DB and verifies
  *
  * The server's device-register route is the ONE place that accepts a key not yet in
  * the devices table — but it still requires X-Device-Key to be present so the auth

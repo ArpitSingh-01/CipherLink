@@ -2,7 +2,7 @@ import rateLimit from 'express-rate-limit';
 import { config } from '../config';
 
 /**
- * SEC-FIX: Per-IP rate limiting
+ * Per-IP rate limiting
  * 
  * Prevents DoS attacks by limiting requests per IP address.
  * Applied globally to all routes.

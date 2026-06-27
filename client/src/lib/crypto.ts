@@ -41,7 +41,7 @@ export async function hkdf(secret: Uint8Array, salt: Uint8Array, info: string, l
   return new Uint8Array(derivedBits);
 }
 
-// Derive private key from recovery phrase (SEC-01: HKDF-based extraction)
+// Derive private key from recovery phrase (HKDF-based extraction)
 export async function deriveKeyFromPhrase(phrase: string): Promise<Uint8Array> {
   if (!validateMnemonic(phrase, wordlist)) {
     throw new Error('Invalid recovery phrase');
@@ -49,7 +49,7 @@ export async function deriveKeyFromPhrase(phrase: string): Promise<Uint8Array> {
   const seed = mnemonicToSeedSync(phrase);
   
   // BIP39 seed is 512 bits. Use HKDF to extract a 256-bit (32-byte) key.
-  // FIX 6: Replaced zero salt with proper deterministic salt and bumped version to v3
+  // Replaced zero salt with proper deterministic salt and bumped version to v3
   const identityKey = await hkdf(
     seed, 
     new TextEncoder().encode('CipherLink-Identity-v3-salt'),
@@ -170,7 +170,7 @@ export async function decryptMessage(
   // Derive shared secret using recipient's private key and ephemeral public key
   const sharedSecret = deriveSharedSecret(recipientPrivateKey, ephemeralPublicKey);
 
-  // SEC-04: Reject messages without salt — backward compatibility removed for security
+  // Reject messages without salt — backward compatibility removed for security
   if (!salt) {
     throw new Error('Message format not supported: missing encryption salt');
   }
@@ -255,7 +255,7 @@ export function getDeviceName(): string {
   else if (/Mac/i.test(userAgent)) platform = "Mac";
   else if (/Linux/i.test(userAgent)) platform = "Linux";
 
-  // FIX 5-E: Detect browser for more descriptive names
+  // Detect browser for more descriptive names
   let browser = "";
   if (/Edg\//i.test(userAgent)) browser = "Edge";
   else if (/Chrome\//i.test(userAgent)) browser = "Chrome";
@@ -287,7 +287,7 @@ export async function restoreIdentity(recoveryPhrase: string): Promise<{
   };
 }
 
-// ==================== PIN-BASED IDENTITY ENCRYPTION (SEC-05 / HARDENED) ====================
+// ── PIN-BASED IDENTITY ENCRYPTION (/ HARDENED) ───────────────────────────────
 
 /** Minimum required PIN length (enforced at crypto layer) */
 export const MIN_PIN_LENGTH = 6;
@@ -384,7 +384,7 @@ export async function encryptIdentityWithPin(
   };
 }
 
-// ==================== IDENTITY FINGERPRINT & SAFETY NUMBER ====================
+// ── IDENTITY FINGERPRINT & SAFETY NUMBER ─────────────────────────────────────
 
 /**
  * Compute a stable fingerprint for a single identity public key.
@@ -404,9 +404,9 @@ export async function fingerprintIdentityKey(publicKeyBytes: Uint8Array): Promis
  * Both parties MUST get the same result — order is canonicalized by sorting.
  *
  * Returns:
- *   hex        — raw 64-char hex string for programmatic use
- *   display    — 12-group of 5 digits (Signal-style) for human comparison
- *   bytes      — raw 32 bytes for QR code generation
+ * hex        — raw 64-char hex string for programmatic use
+ * display    — 12-group of 5 digits (Signal-style) for human comparison
+ * bytes      — raw 32 bytes for QR code generation
  */
 export async function computeSafetyNumber(
   localPublicKey: Uint8Array,
@@ -419,7 +419,7 @@ export async function computeSafetyNumber(
       ? [localPublicKey, remotePublicKey]
       : [remotePublicKey, localPublicKey];
 
-  // FIX 4-B: When sessionId is provided, mix it into the hash for per-session binding
+  // When sessionId is provided, mix it into the hash for per-session binding
   const sessionBytes = sessionId ? new TextEncoder().encode(sessionId) : new Uint8Array(0);
 
   const combined = new Uint8Array(first.length + second.length + sessionBytes.length);
@@ -472,7 +472,7 @@ export async function decryptIdentityWithPin(
   return new TextDecoder().decode(decrypted);
 }
 
-// ==================== GENERIC PERSISTENCE ENCRYPTION (SEC-02/SEC-05) ====================
+// ── GENERIC PERSISTENCE ENCRYPTION (/) ───────────────────────────────────────
 
 /**
  * Encrypts arbitrary data with a raw secret key (e.g. Identity Private Key).
@@ -524,15 +524,15 @@ export async function decryptWithSecret(
   return new TextDecoder().decode(decrypted);
 }
 
-// ==================== WEBSOCKET CHALLENGE AUTH (FIX 2-A) ====================
+// ── WEBSOCKET CHALLENGE AUTH () ──────────────────────────────────────────────
 
 /**
  * Sign a WebSocket challenge nonce with the device's Ed25519 private key.
  * 
  * Protocol:
- *   1. Server sends {"type":"challenge","nonce":"<64 hex chars>"}
- *   2. Client calls signChallenge(nonce, devicePrivateKeyHex)
- *   3. Client sends {"type":"challenge_response","signature":"<128 hex>","devicePublicKey":"<64 hex>"}
+ * 1. Server sends {"type":"challenge","nonce":"<64 hex chars>"}
+ * 2. Client calls signChallenge(nonce, devicePrivateKeyHex)
+ * 3. Client sends {"type":"challenge_response","signature":"<128 hex>","devicePublicKey":"<64 hex>"}
  *
  * @param nonceHex    The 64-char hex nonce from the server challenge
  * @param devicePrivateKeyHex  The device's Ed25519 private key (64 hex chars = 32 bytes)

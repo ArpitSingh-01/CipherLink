@@ -49,7 +49,7 @@ export interface IStorage {
   hasRelationship(publicKey1: string, publicKey2: string): Promise<boolean>;
   areMutualFriends(publicKey1: string, publicKey2: string): Promise<boolean>;
 
-  // Atomic friend code redemption (FIX 7)
+  // Atomic friend code redemption ()
   redeemFriendCode(
     code: string,
     redeemerPublicKey: string
@@ -81,12 +81,12 @@ export interface IStorage {
   getDevices(userPublicKey: string): Promise<Device[]>;
   getDeviceByPublicKey(devicePublicKey: string): Promise<Device | undefined>;
 
-  // BUG-4 FIX: Batch display name lookup (replaces N+1 individual getUser calls)
+  // Batch display name lookup (replaces N+1 individual getUser calls)
   getUsersDisplayNames(publicKeys: string[]): Promise<Map<string, string | null>>;
 
-  // BUG-10 FIX: getUserByPublicKey removed — use getUser() instead
+  // getUserByPublicKey removed — use getUser() instead
 
-  // Primary device promotion (FIX 1-G)
+  // Primary device promotion ()
   updateUserPrimaryDevice(userPublicKey: string, newDevicePublicKey: string): Promise<void>;
 
   // Identity Key Rotation
@@ -165,7 +165,7 @@ export class MemStorage implements IStorage {
   async createUser(insertUser: InsertUser): Promise<User> {
     const normalizedKey = insertUser.publicKey.toLowerCase().trim();
 
-    // CRIT-B: idempotent — return existing user; no device back-fill here.
+    // idempotent — return existing user; no device back-fill here.
     const existingUser = await this.getUser(normalizedKey);
     if (existingUser) {
       return existingUser;
@@ -283,7 +283,7 @@ export class MemStorage implements IStorage {
   }
 
   async declineFriendRequest(userPublicKey: string, friendPublicKey: string): Promise<boolean> {
-    // BUG-FIX (Bug 2): Only remove the requester's OWN pending entry.
+    // BUG-FIX: Only remove the requester's OWN pending entry.
     // Deleting both sides would destroy the friend-code creator's accepted row.
     const toDelete = Array.from(this.friends.entries()).filter(
       ([_, f]) =>
@@ -324,7 +324,7 @@ export class MemStorage implements IStorage {
   }
 
 
-  // SEC-FIX-7: Atomic friend code redemption (single-threaded in-memory, no race conditions)
+  // Atomic friend code redemption (single-threaded in-memory, no race conditions)
   async redeemFriendCode(code: string, redeemerPublicKey: string): Promise<{ friendPublicKey: string }> {
     const friendCode = this.friendCodes.get(code);
     if (!friendCode || friendCode.used || new Date() > friendCode.expiresAt) {
@@ -355,8 +355,8 @@ export class MemStorage implements IStorage {
    * REQUIRED DATABASE MIGRATION — run this manually or via your migration tool:
    *
    * ALTER TABLE messages
-   *   ADD CONSTRAINT messages_sender_nonce_unique
-   *   UNIQUE (sender_public_key, nonce);
+   * ADD CONSTRAINT messages_sender_nonce_unique
+   * UNIQUE (sender_public_key, nonce);
    *
    * Without this constraint the server-side duplicate check is advisory only.
    * The code-level check prevents duplicates in-process; the DB constraint
@@ -369,7 +369,7 @@ export class MemStorage implements IStorage {
     const normalizedSender = insertMessage.senderPublicKey.toLowerCase().trim();
     const normalizedReceiver = insertMessage.receiverPublicKey.toLowerCase().trim();
 
-    // FIX 1-I: Check for duplicate nonce from the same sender (replay detection)
+    // Check for duplicate nonce from the same sender (replay detection)
     const payloads = JSON.parse(insertMessage.encryptedPayloads);
     if (Array.isArray(payloads)) {
       for (const payload of payloads) {
@@ -542,7 +542,7 @@ export class MemStorage implements IStorage {
     const normalizedUserKey = insertDevice.userPublicKey.toLowerCase().trim();
     const normalizedDeviceKey = insertDevice.devicePublicKey.toLowerCase().trim();
 
-    // SEC-FIX (Vuln 5.3): Enforce max 5 active devices per user to prevent DoS fanout
+    // (Vuln 5.3): Enforce max 5 active devices per user to prevent DoS fanout
     const existingDevices = await this.getDevices(normalizedUserKey);
     const activeCount = existingDevices.filter(d => !d.revoked).length;
     if (activeCount >= 5) {
@@ -583,9 +583,9 @@ export class MemStorage implements IStorage {
     return this.devices.get(normalizedKey);
   }
 
-  // BUG-10 FIX: getUserByPublicKey removed — use getUser() instead
+  // getUserByPublicKey removed — use getUser() instead
 
-  // BUG-4 FIX: Batch display name lookup
+  // Batch display name lookup
   async getUsersDisplayNames(publicKeys: string[]): Promise<Map<string, string | null>> {
     const result = new Map<string, string | null>();
     for (const key of publicKeys) {
@@ -595,7 +595,7 @@ export class MemStorage implements IStorage {
     return result;
   }
 
-  // FIX 1-G: Update the primary device key for a user (e.g., after revoking the primary)
+  // Update the primary device key for a user (e.g., after revoking the primary)
   async updateUserPrimaryDevice(userPublicKey: string, newDevicePublicKey: string): Promise<void> {
     const normalizedUser = userPublicKey.toLowerCase().trim();
     const normalizedDevice = newDevicePublicKey.toLowerCase().trim();

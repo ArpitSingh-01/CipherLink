@@ -9,11 +9,11 @@ let cleanupInterval: NodeJS.Timeout | null = null;
 
 /**
  * Cleans up expired data from the database:
- * - Expired messages (where expires_at < now)
- * - Expired or used friend codes
- * - Expired prekey bundles
- * - Expired or used device challenges
- * - Expired auth nonces
+ * Expired messages (where expires_at < now)
+ * Expired or used friend codes
+ * Expired prekey bundles
+ * Expired or used device challenges
+ * Expired auth nonces
  */
 export async function cleanupExpiredData(): Promise<{ deletedMessages: number; deletedCodes: number }> {
   const startTime = Date.now();

@@ -1,5 +1,5 @@
 /**
- * Canonical byte-encoding utilities (FIX 5-F)
+ * Canonical byte-encoding utilities ()
  * 
  * Single source of truth for hex/base64/Uint8Array conversions.
  * Avoids duplicated helpers across crypto.ts, session.ts, and other modules.

@@ -1,5 +1,5 @@
 /**
- * SEC-FIX: Security event logging
+ * Security event logging
  * 
  * Logs security-relevant events for monitoring and incident response.
  * In production, these should be sent to a centralized logging service.
@@ -21,7 +21,7 @@ const recentEvents = new Map<string, number[]>();
 export function logSecurityEvent(event: Omit<SecurityEvent, 'timestamp'>) {
   const fullEvent: SecurityEvent = {
     ...event,
-    // FIX 7: Truncate public key to first 16 chars in logs — sufficient for debugging
+    // Truncate public key to first 16 chars in logs — sufficient for debugging
     publicKey: event.publicKey ? event.publicKey.slice(0, 16) + '...' : undefined,
     timestamp: new Date().toISOString(),
   };
@@ -30,7 +30,7 @@ export function logSecurityEvent(event: Omit<SecurityEvent, 'timestamp'>) {
   if (config.isDev) {
     console.warn('[SECURITY]', JSON.stringify(fullEvent));
   } else {
-    // FIX 5-A: In production, emit ONLY type + severity — no IP, UA, or key material.
+    // In production, emit ONLY type + severity — no IP, UA, or key material.
     // Centralized logging services must never ingest identity-correlated data.
     console.log(JSON.stringify({
       type: fullEvent.type,
@@ -44,7 +44,7 @@ export function logSecurityEvent(event: Omit<SecurityEvent, 'timestamp'>) {
 }
 
 function trackEventForAlerting(event: SecurityEvent) {
-  // FIX 7: Use only first 16 chars of publicKey in tracking key
+  // Use only first 16 chars of publicKey in tracking key
   const key = `${event.type}:${event.ip}:${(event.publicKey || 'unknown').slice(0, 16)}`;
   const now = Date.now();
   const fiveMinutesAgo = now - 5 * 60 * 1000;
@@ -64,7 +64,7 @@ function trackEventForAlerting(event: SecurityEvent) {
     sendAlert(event, events.length);
   }
   
-  // BUG-6 FIX: Deterministic cleanup moved to module-level setInterval below
+  // Deterministic cleanup moved to module-level setInterval below
 }
 
 function shouldAlert(eventType: string, count: number): boolean {
@@ -84,7 +84,7 @@ function shouldAlert(eventType: string, count: number): boolean {
 
 function sendAlert(event: SecurityEvent, count: number) {
   // In production, send to alerting service (PagerDuty, Slack, etc.)
-  // FIX 7: Also truncate publicKey in alert output
+  // Also truncate publicKey in alert output
   console.error(`[SECURITY ALERT] ${event.type} threshold exceeded: ${count} events in 5 minutes`, {
     type: event.type,
     ip: event.ip,
@@ -115,7 +115,7 @@ function cleanupOldEvents() {
   keysToUpdate.forEach(([key, events]) => recentEvents.set(key, events));
 }
 
-// BUG-6 FIX: Deterministic cleanup — runs every 60 seconds.
+// Deterministic cleanup — runs every 60 seconds.
 // Replaces the probabilistic Math.random() < 0.01 check that left stale entries
 // accumulating during low-traffic periods.
 setInterval(() => cleanupOldEvents(), 60_000);

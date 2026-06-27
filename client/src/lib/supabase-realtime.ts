@@ -12,7 +12,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-// BUG-11 FIX: Use environment variables instead of hardcoded values.
+// Use environment variables instead of hardcoded values.
 // These are set in .env (local dev) or deployment environment (production).
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;

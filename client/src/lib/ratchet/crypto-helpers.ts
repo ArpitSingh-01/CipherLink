@@ -43,7 +43,7 @@ export function toBuffer(arr: Uint8Array): ArrayBuffer {
   return arr.buffer.slice(arr.byteOffset, arr.byteOffset + arr.byteLength) as ArrayBuffer;
 }
 
-// P0-01/P0-02: X25519 from @noble/curves — raw 32-byte keys, no PKCS8 wrapping.
+// /X25519 from @noble/curves — raw 32-byte keys, no PKCS8 wrapping.
 // secureClear() on raw bytes actually zeros the private key material.
 export function generateRatchetKeyPair(): { privateKey: Uint8Array; publicKey: Uint8Array } {
   const privateKey = new Uint8Array(32);
@@ -85,7 +85,7 @@ export async function verifySignature(publicKeyBytes: Uint8Array, signature: Uin
   }
 }
 
-// P0-01: X25519 DH — privateKeyBytes is a raw 32-byte scalar, publicKeyBytes is a raw 32-byte point.
+// X25519 DH — privateKeyBytes is a raw 32-byte scalar, publicKeyBytes is a raw 32-byte point.
 export function dh(privateKeyBytes: Uint8Array, publicKeyBytes: Uint8Array): Uint8Array {
   return x25519.getSharedSecret(privateKeyBytes, publicKeyBytes);
 }

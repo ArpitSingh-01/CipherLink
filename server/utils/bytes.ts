@@ -1,5 +1,5 @@
 /**
- * BUG-7 FIX: Safe hex ↔ bytes conversion utilities.
+ * Safe hex ↔ bytes conversion utilities.
  * Replaces all fragile `.match(/.{2}/g)!` patterns across the server.
  */
 
