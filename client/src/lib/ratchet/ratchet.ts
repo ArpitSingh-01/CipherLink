@@ -46,8 +46,8 @@ export function deserializeSessionState(serialized: string): SessionState {
   const uint8Keys = [
     'transcriptHash', 'localIdentityPublicKey', 'remoteIdentityPublicKey',
     'rootKey', 'chainKeySend', 'chainKeyRecv', 'ratchetPrivateKey',
-    'ratchetPublicKey', 'remoteRatchetPublicKey', 'localDevicePublicKey',
-    'remoteDevicePublicKey', 'sessionNoncePrefix'
+    'ratchetPublicKey', 'remoteRatchetPublicKey', 'localSessionPublicKey',
+    'remoteSessionPublicKey', 'sessionNoncePrefix'
   ];
   for (const k of uint8Keys) {
     if (parsed[k]) session[k] = base64ToBytes(parsed[k]);
@@ -125,8 +125,8 @@ export async function initSession(
   remotePreKey: Uint8Array | null,
   remotePreKeySignature: Uint8Array | null,
   remoteIdentitySignPub: Uint8Array | null,
-  localDevicePublicKey: Uint8Array,
-  remoteDevicePublicKey: Uint8Array,
+  localSessionPublicKey: Uint8Array,
+  remoteSessionPublicKey: Uint8Array,
   senderEphemeralPub?: Uint8Array,   // REQUIRED for responder
   explicitIsInitiator?: boolean       // Override role detection instead of relying on remotePreKey !== null
 ): Promise<SessionState> {
@@ -336,8 +336,8 @@ export async function initSession(
     globalRecvMessageNumber: 0,
     previousChainLength: 0,
     skippedMessageKeys: new Map<string, SkippedKey>(),
-    localDevicePublicKey,
-    remoteDevicePublicKey,
+    localSessionPublicKey,
+    remoteSessionPublicKey,
     sessionNoncePrefix,
     seenNonces: seenNoncesQueue,     // legacy compat field
     seenNoncesQueue,

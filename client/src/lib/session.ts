@@ -66,8 +66,8 @@ export async function initSession(
         remoteIdentityPub,                // SPKb     — MUST be X25519; use IKb (SPKb=IKb)
         null,                             // preKeySignature — skipped (SPKb=IKb is self-evident)
         null,                             // remoteIdentitySignPub — no separate Ed25519 check here
-        localIdentityKeyPair.publicKey,   // localDevicePublicKey (session storage key = X25519 identity)
-        remoteIdentityPub,                // remoteDevicePublicKey (session storage key = remote X25519 identity) — 
+        localIdentityKeyPair.publicKey,   // localSessionPublicKey (session storage key = X25519 identity)
+        remoteIdentityPub,                // remoteSessionPublicKey (session storage key = remote X25519 identity) —
         undefined,                        // senderEphemeralPub — initiator generates, does not receive
         true                              // explicitIsInitiator — we are the initiator
       );
@@ -90,8 +90,8 @@ export async function initSession(
         localIdentityKeyPair.publicKey,   // remotePreKey = IKb_pub (local key) → preKeyForHash = IKb ✓
         null,                             // preKeySignature — skipped
         null,                             // remoteIdentitySignPub — no separate Ed25519 check
-        localIdentityKeyPair.publicKey,   // localDevicePublicKey (session storage key = X25519 identity)
-        remoteIdentityPub,                // remoteDevicePublicKey (session storage key = remote X25519 identity) — 
+        localIdentityKeyPair.publicKey,   // localSessionPublicKey (session storage key = X25519 identity)
+        remoteIdentityPub,                // remoteSessionPublicKey (session storage key = remote X25519 identity) —
         senderEphemeralPub,               // EKa_pub from the initiator's payload
         false                             // explicitIsInitiator=false — we are the RESPONDER
       );
@@ -115,7 +115,7 @@ export async function encryptRatchet(
   plaintext: string
 ): Promise<{ ciphertext: string; nonce: string; messageNumber: number; raw: EncryptedMessage }> {
   const enc = await arEncrypt(session, new TextEncoder().encode(plaintext));
-  const sessionId = getSessionId(session.localDevicePublicKey, session.remoteDevicePublicKey);
+  const sessionId = getSessionId(session.localSessionPublicKey, session.remoteSessionPublicKey);
   await saveRatchetSession(sessionId, serializeSessionState(session));
 
   return {
@@ -133,7 +133,7 @@ export async function decryptRatchet(
   // Snapshot session state before mutation — if decryption fails,
   // the ratchet state (chain keys, counters) may have been partially advanced.
   // Restoring the snapshot prevents permanent session corruption.
-  const sessionId = getSessionId(session.localDevicePublicKey, session.remoteDevicePublicKey);
+  const sessionId = getSessionId(session.localSessionPublicKey, session.remoteSessionPublicKey);
   const snapshot = serializeSessionState(session);
   try {
     const dec = await arDecrypt(session, encryptedData);

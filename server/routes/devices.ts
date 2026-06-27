@@ -76,9 +76,9 @@ export function registerDeviceRoutes(app: Express): void {
   // Register a new device (un-challenged backup endpoint)
   app.post("/api/devices/register", requireAuthBootstrap, strictLimiter, async (req, res) => {
     try {
-      const devicePublicKey = req.body.devicePublicKey || req.body.device_public_key;
-      const deviceName = req.body.deviceName || req.body.device_name;
-      const identitySignature = req.body.identity_signature || req.body.identitySignature;
+      const devicePublicKey = req.body.devicePublicKey;
+      const deviceName = req.body.deviceName;
+      const identitySignature = req.body.identitySignature;
       const userPublicKey = req.authPublicKey!;
 
       if (!devicePublicKey || !validatePublicKey(devicePublicKey)) {
@@ -174,7 +174,7 @@ export function registerDeviceRoutes(app: Express): void {
   // Revoke a device
   app.post("/api/devices/revoke", requireAuth, strictLimiter, async (req, res) => {
     try {
-      const devicePublicKey = req.body.devicePublicKey || req.body.device_public_key;
+      const devicePublicKey = req.body.devicePublicKey;
       const userPublicKey = req.authPublicKey!;
 
       if (!devicePublicKey || !validatePublicKey(devicePublicKey)) {

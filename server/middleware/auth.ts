@@ -4,6 +4,7 @@ import type { Request, Response, NextFunction } from 'express';
 import { config } from '../config';
 import { storage } from '../storage';
 import { logSecurityEvent } from '../logger/security';
+import { hexToBytes } from '../utils/bytes';
 import type { User } from '@shared/schema';
 import { db } from '../db';
 import { authNonces } from '@shared/schema';
@@ -17,13 +18,6 @@ declare global {
     }
 }
 
-function hexToBytes(hex: string): Uint8Array {
-    const bytes = new Uint8Array(hex.length / 2);
-    for (let i = 0; i < hex.length; i += 2) {
-        bytes[i / 2] = parseInt(hex.substring(i, i + 2), 16);
-    }
-    return bytes;
-}
 
 /**
  * Timing attack protection
@@ -194,6 +188,13 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
         // X-Public-Key (non-secret) to poison the victim's devicePublicKey field
         // by sending any X-Device-Key before the sig check rejects them.
         const rawBody  = req.rawBody;
+        if (rawBody === undefined && req.method !== 'GET' && req.method !== 'DELETE') {
+            // Body-parsing middleware didn't run — this is a server config error
+            if (config.isDev) {
+                console.error('[Auth] rawBody is undefined — check middleware order in index.ts');
+            }
+            return res.status(500).json({ error: 'Internal server error' });
+        }
         const bodyStr  = Buffer.isBuffer(rawBody) ? rawBody.toString('utf-8') : '';
         const bodyHash = createHash('sha256').update(bodyStr).digest('hex');
         const message  = `${req.method}\n${req.originalUrl}\n${bodyHash}\n${timestamp}\n${requestNonce}`;
@@ -321,6 +322,12 @@ export async function requireAuthBootstrap(req: Request, res: Response, next: Ne
         }
 
         const rawBody  = req.rawBody;
+        if (rawBody === undefined && req.method !== 'GET' && req.method !== 'DELETE') {
+            if (config.isDev) {
+                console.error('[Auth Bootstrap] rawBody is undefined — check middleware order in index.ts');
+            }
+            return res.status(500).json({ error: 'Internal server error' });
+        }
         const bodyStr  = Buffer.isBuffer(rawBody) ? rawBody.toString('utf-8') : '';
         const bodyHash = createHash('sha256').update(bodyStr).digest('hex');
         const message  = `${req.method}\n${req.originalUrl}\n${bodyHash}\n${timestamp}\n${requestNonce}`;

@@ -59,9 +59,9 @@ export async function ensureDeviceRegistered(): Promise<void> {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    device_public_key: deviceIdentity.publicKey,
-                    device_name: deviceIdentity.deviceName,
-                    identity_signature: identitySignatureHex
+                    devicePublicKey: deviceIdentity.publicKey,
+                    deviceName: deviceIdentity.deviceName,
+                    identitySignature: identitySignatureHex
                 }),
             });
 
@@ -103,7 +103,7 @@ export async function revokeDevice(devicePublicKey: string): Promise<void> {
         headers: {
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ device_public_key: devicePublicKey }),
+        body: JSON.stringify({ devicePublicKey }),
     });
 
     if (!response.ok) {

@@ -37,8 +37,13 @@ export interface SessionState {
   globalRecvMessageNumber: number;
   previousChainLength: number;
   skippedMessageKeys: Map<string, SkippedKey>;
-  localDevicePublicKey: Uint8Array;
-  remoteDevicePublicKey: Uint8Array;
+  // Session storage keys — used by getSessionId() to compute the IDB key for
+  // persisting this session. These are both X25519 identity keys.
+  // NOTE: these hold the SAME value as localIdentityPublicKey / remoteIdentityPublicKey.
+  // The redundancy exists because the ratchet module needs the key in two contexts
+  // (transcript binding vs. IDB lookup). Do not deduplicate — tracked as tech debt.
+  localSessionPublicKey: Uint8Array;
+  remoteSessionPublicKey: Uint8Array;
   // 4-byte prefix + 8-byte BigUint64 counter = 12-byte (96-bit) nonce
   sessionNoncePrefix: Uint8Array;
   // O(1) replay guard: Set for fast lookup + FIFO queue for eviction
