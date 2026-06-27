@@ -1,3 +1,7 @@
+/**
+ * Express rate limiters for strict API endpoint protection.
+ * Restricts request frequency to defend against brute-force and denial-of-service attempts.
+ */
 import rateLimit from 'express-rate-limit';
 
 export const strictLimiter = rateLimit({

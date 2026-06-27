@@ -1,3 +1,6 @@
+/**
+ * FriendsSidebar component rendering friend list, search bar, settings dropdown, and link state.
+ */
 import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';

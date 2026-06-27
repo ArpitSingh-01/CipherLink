@@ -1,3 +1,7 @@
+/**
+ * ChatPage component for end-to-end encrypted messaging.
+ * Coordinates Double Ratchet sessions, message processing, and secure UI states.
+ */
 import { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'wouter';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -41,7 +45,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/useToast';
-import { useNotifications } from '@/hooks/useNotifications';
+import { useNotifications } from '../hooks/useNotifications'; // trigger reload
 import { getIdentity, getDeviceIdentity, getAllFriends, saveFriend, getFriend, updateFriendLastMessage, blockUser, unblockUser, isBlocked as isBlockedLocal, getBlockedUsers, clearAllData, hasEncryptedIdentity, getIdentityEncrypted, setDecryptedIdentity, saveSentMessage, getSentMessage, setFriendVerified, getDB, detectIdentityKeyChange, clearSessionMemory, ensureSessionCryptoVersion } from '@/lib/storage';
 import { hexToBytes, bytesToHex, generateFriendCode, computeSafetyNumber, MIN_PIN_LENGTH, zeroizeBytes } from '@/lib/crypto';
 import { ensureDeviceRegistered, detectNewDevices, acknowledgeDevices } from '@/lib/devices';

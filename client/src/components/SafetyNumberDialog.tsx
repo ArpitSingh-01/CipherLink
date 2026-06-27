@@ -1,3 +1,6 @@
+/**
+ * SafetyNumberDialog component providing a visual fingerprint and verification status for identity verification.
+ */
 import { useState, useEffect, useRef } from 'react';
 import QRCode from 'qrcode';
 import {

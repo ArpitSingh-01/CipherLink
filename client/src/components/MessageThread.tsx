@@ -1,3 +1,6 @@
+/**
+ * MessageThread component displaying chat messages, sender avatars, safety number verification, and auto-scroll behavior.
+ */
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';

@@ -1,3 +1,6 @@
+/**
+ * IdentityDialog component displaying user public keys and profile qr code.
+ */
 import {
   Dialog,
   DialogContent,

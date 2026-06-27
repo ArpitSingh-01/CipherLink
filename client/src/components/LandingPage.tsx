@@ -1,3 +1,6 @@
+/**
+ * LandingPage component displaying features, technology details, and app branding.
+ */
 import { Link } from 'wouter';
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { Shield, Lock, ArrowRight, Eye, Fingerprint, Timer, Server, KeyRound, CheckCircle2 } from 'lucide-react';
