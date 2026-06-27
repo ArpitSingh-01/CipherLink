@@ -20,6 +20,9 @@ export interface EncryptedMessage {
 }
 
 export interface SessionState {
+  // X3DH transcript hash — used as session ID in the ratchet protocol.
+  // DIFFERENT from the IDB storage key (which is sort(localIdentityPub, remoteIdentityPub)).
+  // These two IDs serve different purposes and must not be confused.
   sessionId: string;
   isInitiator: boolean;
   transcriptHash: Uint8Array;
@@ -37,8 +40,9 @@ export interface SessionState {
   globalRecvMessageNumber: number;
   previousChainLength: number;
   skippedMessageKeys: Map<string, SkippedKey>;
-  // Session storage keys — used by getSessionId() to compute the IDB key for
-  // persisting this session. These are both X25519 identity keys.
+  // IDB storage keys — both are X25519 identity keys (NOT Ed25519 device keys).
+  // Named "session" to prevent confusion with Ed25519 device keys used in auth
+  // and the transcript-bound identity keys (localIdentityPublicKey/remoteIdentityPublicKey).
   // NOTE: these hold the SAME value as localIdentityPublicKey / remoteIdentityPublicKey.
   // The redundancy exists because the ratchet module needs the key in two contexts
   // (transcript binding vs. IDB lookup). Do not deduplicate — tracked as tech debt.

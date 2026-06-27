@@ -36,7 +36,7 @@ export async function initSession(
   remotePreKeySignature?: Uint8Array | null,
   senderEphemeralPub?: Uint8Array
 ): Promise<{ session: SessionState; ephemeralPublicKey?: Uint8Array }> {
-  // CURVE FIX: X3DH DH operations require X25519 keys on BOTH sides.
+  // X3DH DH operations require X25519 keys on both sides.
   //
   // Identity keys (X25519) are used for IKa/IKb in X3DH.
   // Device keys (Ed25519) are used only for signing/authentication.
@@ -84,9 +84,8 @@ export async function initSession(
         localIdentityKeyPair.privateKey,  // SPKb_priv = IKb_priv (SPKb=IKb simplification)
         localIdentityKeyPair.publicKey,   // SPKb_pub  = IKb_pub
         remoteIdentityPub,                // IKa_pub  — remote X25519 identity key
-        // TRANSCRIPT FIX: preKeyForHash must = IKb_pub on BOTH sides.
-        // Initiator passes remoteIdentityPub (IKb) as SPKb → preKeyForHash = IKb.
-        // Responder IS the SPKb holder (IKb = their local key), so pass localIdentityKeyPair.publicKey.
+        // Transcript consistency: preKeyForHash must equal IKb_pub on both sides.
+        // Initiator passes remoteIdentityPub (IKb); responder passes localIdentityKeyPair.publicKey (also IKb).
         localIdentityKeyPair.publicKey,   // remotePreKey = IKb_pub (local key) → preKeyForHash = IKb ✓
         null,                             // preKeySignature — skipped
         null,                             // remoteIdentitySignPub — no separate Ed25519 check

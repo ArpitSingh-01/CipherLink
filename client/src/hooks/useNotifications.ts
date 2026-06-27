@@ -1,18 +1,15 @@
 /**
- * Supabase Realtime Notification Hook
- * 
- * Subscribes to Supabase Realtime Broadcast signals for cache invalidation.
- * Works everywhere — Vercel serverless, local dev, any host.
- * 
+ * Real-time notification hook using Supabase Realtime Broadcast.
+ *
+ * NOT a WebSocket connection — uses the Supabase client, which manages
+ * its own WebSocket connection internally.
+ *
  * Architecture:
- * Client subscribes to a per-user broadcast channel: `notifications:{publicKey}`
- * Server POSTs a broadcast signal via Supabase REST API after storing a message
- * Client receives the signal and invalidates React Query cache
- * Client then fetches fresh data via authenticated HTTP (Ed25519 signed)
- * 
- * Security: NO message content flows through Supabase Realtime.
- * It's a pure signal channel. All actual data is fetched via
- * authenticated HTTP requests through the existing pipeline.
+ *   Server POSTs to Supabase Realtime REST API after each stored event
+ *   Supabase pushes the signal to this subscriber
+ *   Hook invalidates React Query cache → components refetch via signed HTTP
+ *
+ * Security: NO message content flows through this channel.
  */
 
 import { useEffect, useRef } from 'react';

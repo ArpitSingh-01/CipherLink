@@ -442,8 +442,8 @@ export async function getSentMessage(id: string): Promise<string | undefined> {
   if (!record) return undefined;
 
   const raw = record.plaintext;
-  // RT-02: Detect encrypted record (starts with '{"salt":') and decrypt it.
-  // Legacy plaintext records (pre-fix) are returned as-is.
+  // Detect encrypted record (starts with '{"salt":') and decrypt it.
+  // Legacy plaintext records are returned as-is.
   if (raw && raw.startsWith('{"salt":') && sessionIdentity) {
     try {
       const enc = JSON.parse(raw);

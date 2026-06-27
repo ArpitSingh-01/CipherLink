@@ -534,7 +534,7 @@ export function ChatPage() {
                   const sigMsg = new TextEncoder().encode(peerDevice.devicePublicKey);
                   const sigBytes = hexToBytes(peerDevice.identitySignature);
 
-                  // CRITICAL FIX: identitySignature was signed with the primary device's Ed25519 key.
+                  // The identitySignature was signed with the primary device's Ed25519 key.
                   // msg.senderPublicKey is the X25519 identity key — WRONG curve, wrong key, wrong for verify.
                   // The primary (TOFU) device is self-signed: ed25519.verify(sig, devKey, devKey).
                   // Secondary devices are endorsed by the primary: ed25519.verify(sig, devKey, primaryDevKey).
@@ -915,7 +915,7 @@ export function ChatPage() {
   });
 
   const refreshFriends = async () => {
-    // BUG-FIX: Also sync from server so linked devices pick up accepted friends.
+    // Sync from server so linked devices pick up accepted friends.
     // Previously this only read from local IndexedDB, missing any friend accepted
     // on another device or just accepted via a pending request on this device.
     let friends = await getAllFriends();
