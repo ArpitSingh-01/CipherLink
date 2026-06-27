@@ -97,6 +97,7 @@ import { IdentityDialog } from './identity-dialog';
 import { FriendsSidebar } from './FriendsSidebar';
 import { ComposeBar } from './ComposeBar';
 import { MessageThread } from './MessageThread';
+import { PinUnlockDialog } from './PinUnlockDialog';
 
 interface ChatState {
   identity: {
@@ -225,7 +226,6 @@ export function ChatPage() {
   const [verificationDialogOpen, setVerificationDialogOpen] = useState(false);
   const [safetyWarning, setSafetyWarning] = useState<{ sessionId: string; oldFp: string; newFp: string } | null>(null);
   const [newDevices, setNewDevices] = useState<any[]>([]);
-  const [pin, setPin] = useState('');
   const [pinError, setPinError] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
@@ -370,7 +370,7 @@ export function ChatPage() {
     // The TOFU hooks are now registered before any component renders.
   }, [state.identity]);
 
-  const handlePinUnlock = async () => {
+  const handlePinUnlock = async (enteredPin: string) => {
     // Rate-limit check
     const now = Date.now();
     if (now < pinLockoutUntil.current) {
@@ -378,12 +378,12 @@ export function ChatPage() {
       setPinError(`Too many attempts. Try again in ${remaining}s.`);
       return;
     }
-    if (pin.length < MIN_PIN_LENGTH) {
+    if (enteredPin.length < MIN_PIN_LENGTH) {
       setPinError(`PIN must be at least ${MIN_PIN_LENGTH} characters`);
       return;
     }
     try {
-      const identity = await getIdentityEncrypted(pin);
+      const identity = await getIdentityEncrypted(enteredPin);
       if (!identity) {
         pinAttemptCount.current += 1;
         if (pinAttemptCount.current >= 5) {
@@ -400,7 +400,6 @@ export function ChatPage() {
       pinLockoutUntil.current = 0;
       await setDecryptedIdentity(identity);
       setPinPromptOpen(false);
-      setPin('');
       setPinError('');
       // Reload data after unlock
       const friends = await getAllFriends();
@@ -1151,28 +1150,11 @@ export function ChatPage() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         {pinPromptOpen ? (
-          <div className="w-full max-w-sm p-6">
-            <div className="text-center mb-6">
-              <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                <KeyRound className="w-8 h-8 text-primary" />
-              </div>
-              <h2 className="text-xl font-bold mb-2">Unlock CipherLink</h2>
-              <p className="text-sm text-muted-foreground">Enter your PIN to decrypt your identity</p>
-            </div>
-            <Input
-              type="password"
-              placeholder="Enter PIN"
-              value={pin}
-              onChange={(e) => { setPin(e.target.value); setPinError(''); }}
-              onKeyDown={(e) => { if (e.key === 'Enter') handlePinUnlock(); }}
-              className="mb-2"
-              data-testid="input-unlock-pin"
-            />
-            {pinError && <p className="text-sm text-destructive mb-2">{pinError}</p>}
-            <Button className="w-full" onClick={handlePinUnlock} data-testid="button-unlock">
-              Unlock
-            </Button>
-          </div>
+          <PinUnlockDialog
+            onUnlock={handlePinUnlock}
+            error={pinError}
+            loading={false}
+          />
         ) : (
           <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
         )}
