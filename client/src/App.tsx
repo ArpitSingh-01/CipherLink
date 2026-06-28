@@ -8,6 +8,7 @@ import { Onboarding } from "@/components/Onboarding";
 import { ChatPage } from "@/components/ChatPage";
 import NotFound from "@/pages/NotFound";
 import { setPersistentHooks } from '@/lib/session';
+import { Analytics } from '@vercel/analytics/react';
 
 // Register TOFU persistent hooks at module level — BEFORE any component renders.
 // This ensures persistentHooks is never null when dhRatchet or initSession fires,
@@ -48,6 +49,7 @@ function App() {
       <TooltipProvider>
         <Toaster />
         <Router />
+        <Analytics />
       </TooltipProvider>
     </QueryClientProvider>
   );
