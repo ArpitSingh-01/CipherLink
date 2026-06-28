@@ -13,13 +13,15 @@ import {
 } from '@/components/ui/select';
 import { Clock, Send } from 'lucide-react';
 import { TTL_OPTIONS, DEFAULT_TTL } from '@shared/schema';
+import { motion } from 'framer-motion';
 
 interface ComposeBarProps {
   onSend: (message: string, ttl: number) => void;
   disabled: boolean;
+  onTyping?: () => void;
 }
 
-export function ComposeBar({ onSend, disabled }: ComposeBarProps) {
+export function ComposeBar({ onSend, disabled, onTyping }: ComposeBarProps) {
   const [message, setMessage] = useState('');
   const [ttl, setTtl] = useState(DEFAULT_TTL.toString());
 
@@ -34,6 +36,13 @@ export function ComposeBar({ onSend, disabled }: ComposeBarProps) {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
+    }
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setMessage(e.target.value);
+    if (onTyping) {
+      onTyping();
     }
   };
 
@@ -57,20 +66,25 @@ export function ComposeBar({ onSend, disabled }: ComposeBarProps) {
           <Input
             placeholder="Type a message..."
             value={message}
-            onChange={(e) => setMessage(e.target.value)}
+            onChange={handleChange}
             onKeyDown={handleKeyDown}
             disabled={disabled}
             className="pr-12"
             data-testid="input-message"
           />
         </div>
-        <Button
-          onClick={handleSend}
-          disabled={!message.trim() || disabled}
-          data-testid="button-send-message"
+        <motion.div
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
         >
-          <Send className="w-4 h-4" />
-        </Button>
+          <Button
+            onClick={handleSend}
+            disabled={!message.trim() || disabled}
+            data-testid="button-send-message"
+          >
+            <Send className="w-4 h-4" />
+          </Button>
+        </motion.div>
       </div>
     </div>
   );

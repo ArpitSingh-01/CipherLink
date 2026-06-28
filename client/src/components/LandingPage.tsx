@@ -4,7 +4,104 @@
 import { Link } from 'wouter';
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { Shield, Lock, ArrowRight, Eye, Fingerprint, Timer, Server, KeyRound, CheckCircle2 } from 'lucide-react';
-import { motion, useScroll, useTransform, useMotionValue, useSpring, useInView } from 'framer-motion';
+import { motion, useScroll, useTransform, useMotionValue, useSpring, useInView, useTime } from 'framer-motion';
+
+function StaggeredDotGrid() {
+  const time = useTime();
+  // slow drift: rotate and slide
+  const x = useTransform(time, (t) => Math.sin(t / 8000) * 15);
+  const y = useTransform(time, (t) => Math.cos(t / 6000) * 15);
+  
+  return (
+    <div className="absolute inset-0 pointer-events-none overflow-hidden -z-10 opacity-[0.15]">
+      <motion.div
+        style={{ x, y }}
+        className="w-[120%] h-[120%] -left-[10%] -top-[10%] absolute bg-[radial-gradient(rgba(255,255,255,0.15)_1px,transparent_1px)] [background-size:24px_24px]"
+      />
+    </div>
+  );
+}
+
+function EncryptionFlowDiagram() {
+  const ref = useRef<SVGSVGElement>(null);
+  const isInView = useInView(ref, { once: true, margin: "-100px" });
+
+  return (
+    <div className="mt-8 p-6 rounded-2xl bg-zinc-950/40 border border-white/[0.03] flex flex-col items-center">
+      <div className="flex items-center justify-between w-full max-w-md mb-4 text-xs text-zinc-500 font-mono">
+        <span>Alice (Client)</span>
+        <span>Relay Server</span>
+        <span>Bob (Client)</span>
+      </div>
+      <svg
+        ref={ref}
+        viewBox="0 0 400 100"
+        className="w-full max-w-md h-auto overflow-visible"
+      >
+        {/* Nodes */}
+        <circle cx="20" cy="50" r="8" className="fill-cyan-500/20 stroke-cyan-400 stroke-2 animate-pulse" />
+        <circle cx="200" cy="50" r="10" className="fill-indigo-950 stroke-indigo-500/50 stroke-2" />
+        <circle cx="380" cy="50" r="8" className="fill-cyan-500/20 stroke-cyan-400 stroke-2 animate-pulse" />
+
+        {/* Animated flow path */}
+        <motion.path
+          d="M 28 50 L 190 50"
+          fill="none"
+          stroke="url(#cyan-indigo)"
+          strokeWidth="2"
+          strokeDasharray="4 4"
+          initial={{ pathLength: 0 }}
+          animate={isInView ? { pathLength: 1 } : {}}
+          transition={{ duration: 1.5, delay: 0.2, ease: "easeInOut" }}
+        />
+        <motion.path
+          d="M 210 50 L 372 50"
+          fill="none"
+          stroke="url(#indigo-cyan)"
+          strokeWidth="2"
+          strokeDasharray="4 4"
+          initial={{ pathLength: 0 }}
+          animate={isInView ? { pathLength: 1 } : {}}
+          transition={{ duration: 1.5, delay: 1.2, ease: "easeInOut" }}
+        />
+
+        {/* Moving data packets */}
+        {isInView && (
+          <>
+            <motion.circle
+              r="4"
+              className="fill-cyan-400"
+              initial={{ cx: 28, cy: 50, opacity: 1 }}
+              animate={{ cx: 190, cy: 50, opacity: [1, 1, 0] }}
+              transition={{ repeat: Infinity, duration: 2, ease: "linear" }}
+            />
+            <motion.circle
+              r="4"
+              className="fill-indigo-400"
+              initial={{ cx: 210, cy: 50, opacity: 0 }}
+              animate={{ cx: 372, cy: 50, opacity: [0, 1, 1, 0] }}
+              transition={{ repeat: Infinity, duration: 2, delay: 1, ease: "linear" }}
+            />
+          </>
+        )}
+
+        <defs>
+          <linearGradient id="cyan-indigo" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#22d9b6" />
+            <stop offset="100%" stopColor="#6366f1" />
+          </linearGradient>
+          <linearGradient id="indigo-cyan" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#6366f1" />
+            <stop offset="100%" stopColor="#22d9b6" />
+          </linearGradient>
+        </defs>
+      </svg>
+      <div className="mt-4 text-[11px] font-mono text-zinc-500 text-center">
+        Double Ratchet Key Exchange Path (End-to-End Encrypted)
+      </div>
+    </div>
+  );
+}
 
 /* ─── Hooks ─────────────────────────────────────────────────────────── */
 
@@ -161,9 +258,11 @@ function Hero() {
 
   return (
     <section ref={ref} className="relative min-h-[105vh] flex items-center overflow-hidden pt-20">
+      <StaggeredDotGrid />
+
       {/* Artistic radial lighting */}
-      <div className="absolute top-[30%] left-[10%] w-[600px] h-[600px] rounded-full bg-cyan-700/[0.03] blur-[100px] pointer-events-none" />
-      <div className="absolute top-[40%] right-[5%] w-[800px] h-[800px] rounded-full bg-indigo-600/[0.02] blur-[130px] pointer-events-none" />
+      <div className="absolute top-[30%] left-[10%] w-[600px] h-[600px] rounded-full bg-cyan-700/[0.04] blur-[100px] pointer-events-none" />
+      <div className="absolute top-[40%] right-[5%] w-[800px] h-[800px] rounded-full bg-indigo-600/[0.03] blur-[130px] pointer-events-none" />
 
       <motion.div
         style={{ y: textY, opacity: textOpacity }}
@@ -181,14 +280,19 @@ function Hero() {
           </motion.div>
 
           <motion.h1
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.35, duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ 
+              type: 'spring',
+              stiffness: 90,
+              damping: 14,
+              delay: 0.3
+            }}
             className="text-[clamp(3.2rem,6vw,5.5rem)] font-bold leading-[1.05] tracking-[-0.04em] text-white mb-8"
           >
             Encryption without
             <br />
-            <span className="text-zinc-500 font-serif italic text-[0.95em]">compromise.</span>
+            <span className="bg-gradient-to-r from-cyan-400 to-indigo-400 bg-clip-text text-transparent font-serif italic text-[0.95em]">compromise.</span>
           </motion.h1>
 
           <motion.p
@@ -238,7 +342,7 @@ function Hero() {
                
                {/* Core node */}
                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 rounded-full bg-gradient-to-br from-zinc-800 to-zinc-950 border border-white/[0.05] flex items-center justify-center shadow-[0_0_80px_rgba(0,0,0,0.8)]">
-                  <Lock className="w-8 h-8 text-zinc-600" />
+                  <Lock className="w-8 h-8 text-cyan-400" />
                </div>
                
                {/* Satellites */}
@@ -348,6 +452,7 @@ function ProductVisualization() {
                   
                 </div>
               </div>
+              <EncryptionFlowDiagram />
             </Reveal>
           </div>
         </div>
@@ -405,17 +510,36 @@ function ProtocolSection() {
           </Reveal>
         </div>
 
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-16">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {protocols.map((protocol, i) => (
             <Reveal key={protocol.num} delay={i * 0.1} direction="up">
-              <div className="group relative">
-                <div className="text-zinc-800 font-mono text-[10px] tracking-widest mb-4">
-                  {protocol.num} //
+              <motion.div 
+                whileHover={{ y: -8, scale: 1.02 }}
+                transition={{ type: 'spring', stiffness: 200, damping: 15 }}
+                className="group relative p-6 rounded-2xl bg-glass border border-glass hover:border-cyan-500/30 hover:shadow-xl transition-all duration-300 overflow-hidden h-full flex flex-col justify-between"
+              >
+                {/* Subtle gradient hover glow */}
+                <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 to-indigo-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+
+                <div>
+                  <div className="flex items-center justify-between mb-6">
+                    <span className="text-zinc-600 font-mono text-xs">{protocol.num} //</span>
+                    {/* Rotating icon holder */}
+                    <motion.div
+                      whileHover={{ rotate: 360 }}
+                      transition={{ duration: 0.8, ease: "easeInOut" }}
+                      className="w-8 h-8 rounded-lg bg-zinc-900 border border-white/[0.04] flex items-center justify-center text-cyan-400/80 group-hover:text-cyan-400"
+                    >
+                      {i === 0 && <KeyRound className="w-4 h-4" />}
+                      {i === 1 && <Fingerprint className="w-4 h-4" />}
+                      {i === 2 && <Shield className="w-4 h-4" />}
+                      {i === 3 && <Server className="w-4 h-4" />}
+                    </motion.div>
+                  </div>
+                  <h3 className="text-[16px] font-medium text-zinc-100 mb-3 group-hover:text-white transition-colors">{protocol.title}</h3>
+                  <p className="text-[13px] leading-relaxed text-zinc-500 group-hover:text-zinc-400 transition-colors">{protocol.desc}</p>
                 </div>
-                <div className="h-px w-full bg-zinc-900 mb-6 group-hover:bg-cyan-900/50 transition-colors duration-500" />
-                <h3 className="text-[16px] font-medium text-zinc-200 mb-3">{protocol.title}</h3>
-                <p className="text-[14px] leading-relaxed text-zinc-500">{protocol.desc}</p>
-              </div>
+              </motion.div>
             </Reveal>
           ))}
         </div>

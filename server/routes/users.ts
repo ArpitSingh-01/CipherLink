@@ -15,14 +15,13 @@ export function registerUserRoutes(app: Express): void {
   // Register a new user (just their public key)
   app.post("/api/users", strictLimiter, globalRegistrationLimiter, async (req, res) => {
     try {
-      const { publicKey, displayName } = req.body;
+      const { publicKey } = req.body;
 
       if (!publicKey || !validatePublicKey(publicKey)) {
         return res.status(400).json({ error: "Invalid public key" });
       }
 
-      const sanitizedName = typeof displayName === 'string' ? displayName.trim().slice(0, 30) : undefined;
-      await storage.createUser({ publicKey, displayName: sanitizedName || undefined });
+      await storage.createUser({ publicKey });
 
       res.json({ success: true });
     } catch (error) {

@@ -23,7 +23,7 @@ interface NotificationPayload {
   t?: number;
 }
 
-export function useNotifications(publicKey: string | null | undefined) {
+export function useNotifications(publicKey: string | null | undefined, onTypingReceived?: (from: string) => void) {
   const queryClient = useQueryClient();
   const channelRef = useRef<RealtimeChannel | null>(null);
 
@@ -35,7 +35,11 @@ export function useNotifications(publicKey: string | null | undefined) {
 
     // Subscribe to Supabase Realtime Broadcast channel
     const channel = supabase
-      .channel(channelName)
+      .channel(channelName, {
+        config: {
+          private: true,
+        },
+      })
       .on('broadcast', { event: 'signal' }, (payload) => {
         const data = payload.payload as NotificationPayload;
 
@@ -46,6 +50,12 @@ export function useNotifications(publicKey: string | null | undefined) {
               queryKey: ['/api/messages'],
               exact: false,
             });
+            break;
+
+          case 'typing' as any:
+            if (onTypingReceived && (data as any).from) {
+              onTypingReceived((data as any).from);
+            }
             break;
 
           case 'friend_request':

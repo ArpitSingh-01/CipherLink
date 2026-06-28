@@ -82,13 +82,12 @@ export class SupabaseStorage implements IStorage {
         return existing;
       }
 
-      // Insert new user (publicKey + optional displayName)
+      // Insert new user (publicKey only)
       const normalizedKey = insertUser.publicKey.toLowerCase().trim();
 
       const result = await db.insert(users)
         .values({
           publicKey: normalizedKey,
-          displayName: insertUser.displayName || null,
           updatedAt: new Date(),
         })
         .returning();
@@ -482,22 +481,33 @@ export class SupabaseStorage implements IStorage {
     }
   }
 
-  async getMessages(userPublicKey: string, friendPublicKey: string): Promise<Message[]> {
+  async getMessages(
+    userPublicKey: string,
+    friendPublicKey: string,
+    options?: { before?: string; limit?: number }
+  ): Promise<Message[]> {
     try {
       const now = new Date();
       const normalizedUser = userPublicKey.toLowerCase().trim();
       const normalizedFriend = friendPublicKey.toLowerCase().trim();
+      const limit = options?.limit ?? 50;
+
+      const conditions = [
+        gt(messages.expiresAt, now),
+        eq(messages.conversationId, generateConversationId(normalizedUser, normalizedFriend))
+      ];
+
+      if (options?.before) {
+        conditions.push(lt(messages.id, options.before));
+      }
+
       const result = await db.select()
         .from(messages)
-        .where(
-          and(
-            gt(messages.expiresAt, now),
-            eq(messages.conversationId, generateConversationId(normalizedUser, normalizedFriend))
-          )
-        )
-        .orderBy(sql`${messages.createdAt} DESC`)
-        .limit(50);
+        .where(and(...conditions))
+        .orderBy(sql`${messages.id} DESC`)
+        .limit(limit);
 
+      result.reverse();
       return result;
     } catch (error) {
       logError('getMessages', error);
@@ -873,21 +883,11 @@ export class SupabaseStorage implements IStorage {
 
   // Batch display name lookup (single query instead of N+1)
   async getUsersDisplayNames(publicKeys: string[]): Promise<Map<string, string | null>> {
-    if (publicKeys.length === 0) return new Map();
-    try {
-      const normalizedKeys = publicKeys.map(k => k.toLowerCase().trim());
-      const result = await db.select({ publicKey: users.publicKey, displayName: users.displayName })
-        .from(users)
-        .where(sql`${users.publicKey} IN (${sql.join(normalizedKeys.map(k => sql`${k}`), sql`, `)})`);
-      const map = new Map<string, string | null>();
-      for (const row of result) {
-        map.set(row.publicKey, row.displayName ?? null);
-      }
-      return map;
-    } catch (error) {
-      logError('getUsersDisplayNames', error);
-      return new Map();
+    const map = new Map<string, string | null>();
+    for (const key of publicKeys) {
+      map.set(key.toLowerCase().trim(), null);
     }
+    return map;
   }
 
   // Update the primary device key for a user (e.g., after revoking the primary)

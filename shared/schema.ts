@@ -8,7 +8,6 @@ export const users = pgTable("users", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   publicKey: text("public_key").notNull().unique(),
   devicePublicKey: text("device_public_key"),
-  displayName: text("display_name"), // User's self-chosen public name (not relationship metadata)
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 }, (table) => ({
@@ -19,7 +18,6 @@ export const users = pgTable("users", {
 // Device registration is a SEPARATE, challenge-bound operation.
 export const insertUserSchema = createInsertSchema(users).pick({
   publicKey: true,
-  displayName: true,
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;

@@ -156,18 +156,37 @@ function RecoveryPhraseStep({
 
       <Card className="mb-6">
         <CardContent className="p-6">
-          <div className="grid grid-cols-3 gap-3 mb-6">
+          <motion.div 
+            variants={{
+              hidden: { opacity: 0 },
+              show: {
+                opacity: 1,
+                transition: { staggerChildren: 0.05 }
+              }
+            }}
+            initial="hidden"
+            animate="show"
+            className="grid grid-cols-3 gap-3 mb-6"
+          >
             {words.map((word, index) => (
-              <div
+              <motion.div
                 key={index}
-                className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 font-mono text-sm animate-reveal"
-                style={{ animationDelay: `${index * 0.05}s` }}
+                variants={{
+                  hidden: { opacity: 0, scale: 0.8, y: 10 },
+                  show: { 
+                    opacity: 1, 
+                    scale: 1, 
+                    y: 0,
+                    transition: { type: "spring", stiffness: 260, damping: 20 }
+                  }
+                }}
+                className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 font-mono text-sm"
               >
                 <span className="text-muted-foreground text-xs w-5">{index + 1}.</span>
                 <span data-testid={`text-word-${index + 1}`}>{word}</span>
-              </div>
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
 
           <Button
             variant="outline"
@@ -331,17 +350,29 @@ function PinStep({
   const [confirmPin, setConfirmPin] = useState('');
   const [sessionOnly, setSessionOnly] = useState(false);
   const [error, setError] = useState('');
+  const [isShaking, setIsShaking] = useState(false);
 
   const handleSubmit = () => {
     if (pin.length < MIN_PIN_LENGTH) {
       setError(`PIN must be at least ${MIN_PIN_LENGTH} characters`);
+      setIsShaking(true);
+      setTimeout(() => setIsShaking(false), 500);
       return;
     }
     if (pin !== confirmPin) {
       setError('PINs do not match');
+      setIsShaking(true);
+      setTimeout(() => setIsShaking(false), 500);
       return;
     }
     onSetPin(pin, sessionOnly);
+  };
+
+  const shakeVariants = {
+    shake: {
+      x: [0, -10, 10, -10, 10, -5, 5, 0],
+      transition: { duration: 0.5 }
+    }
   };
 
   return (
@@ -360,45 +391,54 @@ function PinStep({
         </p>
       </div>
 
-      <Card className="mb-6">
-        <CardContent className="p-6 space-y-4">
-          <div>
-            <Label className="text-sm text-muted-foreground mb-2 block">PIN</Label>
-            <Input
-              type="password"
-              placeholder={`Enter PIN (min ${MIN_PIN_LENGTH} characters)`}
-              value={pin}
-              onChange={(e) => { setPin(e.target.value); setError(''); }}
-              data-testid="input-pin"
-            />
-          </div>
-          <div>
-            <Label className="text-sm text-muted-foreground mb-2 block">Confirm PIN</Label>
-            <Input
-              type="password"
-              placeholder="Confirm PIN"
-              value={confirmPin}
-              onChange={(e) => { setConfirmPin(e.target.value); setError(''); }}
-              data-testid="input-confirm-pin"
-            />
-          </div>
-          {error && (
-            <p className="text-sm text-destructive">{error}</p>
-          )}
+      <motion.div
+        variants={shakeVariants}
+        animate={isShaking ? "shake" : ""}
+      >
+        <Card className="mb-6">
+          <CardContent className="p-6 space-y-4">
+            <div>
+              <Label className="text-sm text-muted-foreground mb-2 block">PIN</Label>
+              <motion.div whileFocus={{ scale: 1.01 }} transition={{ type: "spring", stiffness: 300, damping: 15 }} className="w-full">
+                <Input
+                  type="password"
+                  placeholder={`Enter PIN (min ${MIN_PIN_LENGTH} characters)`}
+                  value={pin}
+                  onChange={(e) => { setPin(e.target.value); setError(''); }}
+                  data-testid="input-pin"
+                />
+              </motion.div>
+            </div>
+            <div>
+              <Label className="text-sm text-muted-foreground mb-2 block">Confirm PIN</Label>
+              <motion.div whileFocus={{ scale: 1.01 }} transition={{ type: "spring", stiffness: 300, damping: 15 }} className="w-full">
+                <Input
+                  type="password"
+                  placeholder="Confirm PIN"
+                  value={confirmPin}
+                  onChange={(e) => { setConfirmPin(e.target.value); setError(''); }}
+                  data-testid="input-confirm-pin"
+                />
+              </motion.div>
+            </div>
+            {error && (
+              <p className="text-sm text-destructive">{error}</p>
+            )}
 
-          <div className="flex items-center space-x-2 pt-2">
-            <Checkbox
-              id="session-only"
-              checked={sessionOnly}
-              onCheckedChange={(checked) => setSessionOnly(checked === true)}
-              data-testid="checkbox-session-only"
-            />
-            <label htmlFor="session-only" className="text-sm text-muted-foreground cursor-pointer">
-              Session only — clear identity when tab closes (maximum security)
-            </label>
-          </div>
-        </CardContent>
-      </Card>
+            <div className="flex items-center space-x-2 pt-2">
+              <Checkbox
+                id="session-only"
+                checked={sessionOnly}
+                onCheckedChange={(checked) => setSessionOnly(checked === true)}
+                data-testid="checkbox-session-only"
+              />
+              <label htmlFor="session-only" className="text-sm text-muted-foreground cursor-pointer">
+                Session only — clear identity when tab closes (maximum security)
+              </label>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
 
       <div className="p-4 rounded-lg bg-primary/5 border border-primary/20 mb-6">
         <p className="text-sm text-muted-foreground">
@@ -684,7 +724,7 @@ function LinkDeviceStep({ onBack, onComplete }: { onBack: () => void; onComplete
             // saved in handleLinkPin after the user chooses their PIN. Do NOT call
             // setDecryptedIdentity here — that would cause state duplication and
             // the double-display-name issue.
-            await saveDeviceIdentity(myDeviceKey, deviceKeys.privateKey, getDeviceName());
+            await saveDeviceIdentity(myDeviceKey, deviceKeys.privateKey, getDeviceName(), hexToBytes(identity.privateKey));
 
             toast({ title: "Identity Linked!", description: "Identity successfully transferred." });
             onComplete(identity);
@@ -860,7 +900,7 @@ export function Onboarding() {
       // Without this flag, ensureDeviceRegistered() sends a self-signed
       // payload, which the server rejects as "Forged identity signature"
       // because userRecord.devicePublicKey is already set (non-TOFU path).
-      const savedDeviceId = await getDeviceIdentity();
+      const savedDeviceId = await getDeviceIdentity(hexToBytes(linkedIdentity.privateKey));
       if (savedDeviceId) {
         const idb = await getDB();
         await idb.put('settings', 'true', `device_registered_${savedDeviceId.publicKey}`);
@@ -910,7 +950,7 @@ export function Onboarding() {
 
       // Step 2: Register the primary device via the challenge-bound bootstrap endpoint
       try {
-        await ensureDeviceRegistered();
+        await ensureDeviceRegistered(hexToBytes(identity.privateKey));
       } catch {
         // Non-fatal — device may already be registered
       }

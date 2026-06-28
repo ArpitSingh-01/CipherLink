@@ -83,11 +83,12 @@ export function notifyNewMessage(receiverPublicKey: string, senderPublicKey: str
 }
 
 /**
- * Notify a user about friend-related events (new request, accepted, etc.)
+ * Notify a user about friend-related events (new request, accepted, etc. or typing)
  */
 export function notifyFriendEvent(
   targetPublicKey: string,
-  eventType: 'friend_request' | 'friend_accepted' | 'typing' // added typing
+  eventType: 'friend_request' | 'friend_accepted' | 'typing',
+  fromPublicKey?: string
 ): void {
   const normalizedKey = targetPublicKey.toLowerCase().trim();
   const channelTopic = `notifications:${normalizedKey}`;
@@ -95,6 +96,7 @@ export function notifyFriendEvent(
   // Fire-and-forget — never blocks the API response
   broadcastSignal(channelTopic, {
     type: eventType,
+    from: fromPublicKey ? fromPublicKey.slice(0, 16) : undefined,
     t: Date.now(),
   }).catch(() => {}); // Swallow any unhandled rejections
 }

@@ -33,7 +33,7 @@ export function registerMessageRoutes(app: Express): void {
       const canNotify = await storage.areMutualFriends(senderPublicKey, receiverPublicKey);
       if (!canNotify) return res.json({ success: true });
 
-      notifyFriendEvent(receiverPublicKey, 'typing');
+      notifyFriendEvent(receiverPublicKey, 'typing', senderPublicKey);
 
       res.json({ success: true });
     } catch (error) {
@@ -79,11 +79,30 @@ export function registerMessageRoutes(app: Express): void {
         if (!payload.nonce || !nonceSchema.safeParse(payload.nonce).success) {
           return res.status(400).json({ error: "Invalid nonce in payload" });
         }
-        if (!payload.ephemeralPublicKey || !ephemeralKeySchema.safeParse(payload.ephemeralPublicKey).success) {
-          return res.status(400).json({ error: "Invalid ephemeral key in payload" });
-        }
-        if (!payload.salt || !saltSchema.safeParse(payload.salt).success) {
-          return res.status(400).json({ error: 'Invalid or missing salt in payload' });
+
+        const version = payload.payloadVersion ?? 1;
+        if (version === 1) {
+          if (!payload.ephemeralPublicKey || !ephemeralKeySchema.safeParse(payload.ephemeralPublicKey).success) {
+            return res.status(400).json({ error: "Invalid ephemeral key in payload" });
+          }
+          if (!payload.salt || !saltSchema.safeParse(payload.salt).success) {
+            return res.status(400).json({ error: 'Invalid or missing salt in payload' });
+          }
+        } else if (version === 2) {
+          if (payload.salt !== undefined) {
+            return res.status(400).json({ error: "Salt is not allowed in Double Ratchet (v2) payloads" });
+          }
+          if (payload.ephemeralPublicKey !== undefined) {
+            return res.status(400).json({ error: "ephemeralPublicKey is not allowed in Double Ratchet (v2) payloads" });
+          }
+          if (!payload.header) {
+            return res.status(400).json({ error: "Header is required in Double Ratchet (v2) payloads" });
+          }
+          if (!payload.header.ratchetPubKey || !validatePublicKey(payload.header.ratchetPubKey)) {
+            return res.status(400).json({ error: "Invalid ratchetPubKey in header" });
+          }
+        } else {
+          return res.status(400).json({ error: `Unsupported payload version: ${version}` });
         }
       }
 
@@ -152,7 +171,7 @@ export function registerMessageRoutes(app: Express): void {
       if (req.authPublicKey !== userPublicKey) {
         return res.status(401).json({ error: "Public key mismatch" });
       }
-      const { friendPublicKey } = req.query;
+      const { friendPublicKey, before, limit } = req.query;
 
       if (!validatePublicKey(userPublicKey)) {
         return res.status(400).json({ error: "Invalid user public key" });
@@ -162,9 +181,15 @@ export function registerMessageRoutes(app: Express): void {
         return res.status(400).json({ error: "Invalid friend public key" });
       }
 
+      const beforeStr = typeof before === 'string' ? before : undefined;
+      const limitVal = typeof limit === 'string' && /^\d+$/.test(limit) ? parseInt(limit) : undefined;
+
       const blockedUsers = await storage.getBlockedUsers(userPublicKey);
 
-      const messages = await storage.getMessages(userPublicKey, friendPublicKey);
+      const messages = await storage.getMessages(userPublicKey, friendPublicKey, {
+        before: beforeStr,
+        limit: limitVal,
+      });
 
       const filteredMessages = messages.filter(
         (msg) => !blockedUsers.includes(msg.senderPublicKey)

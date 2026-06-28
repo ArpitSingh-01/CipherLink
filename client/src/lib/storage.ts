@@ -21,6 +21,17 @@ interface EncryptedIdentityRecord {
   publicKey: string; // Unencrypted for lookup (not secret)
 }
 
+interface EncryptedDeviceIdentityRecord {
+  id: string; // 'current'
+  publicKey: string;
+  encryptedPrivateKey: {
+    salt: string;
+    iv: string;
+    ciphertext: string;
+  };
+  deviceName: string;
+}
+
 interface DeviceIdentity {
   id: string; // 'current'
   publicKey: string;
@@ -52,7 +63,7 @@ interface CipherLinkDB extends DBSchema {
   };
   deviceIdentity: {
     key: string;
-    value: DeviceIdentity;
+    value: EncryptedDeviceIdentityRecord;
   };
   deviceCryptoKey: {
     key: string;
@@ -64,12 +75,11 @@ interface CipherLinkDB extends DBSchema {
   };
 }
 
-// Bump this constant whenever the X3DH/ratchet crypto format changes.
-// ensureSessionCryptoVersion() checks it on startup and wipes ratchetSessions if stale.
-const SESSION_CRYPTO_VERSION = 'v10-stable-transcript';
+// Bumped to 'v11-canonical-aad' because of Fix 1.3: serializeHeader switched from JSON.stringify to canonical binary encoding.
+const SESSION_CRYPTO_VERSION = 'v11-canonical-aad';
 
 export async function getDB(): Promise<IDBPDatabase<CipherLinkDB>> {
-  return openDB<CipherLinkDB>('cipherlink', 8, {
+  return openDB<CipherLinkDB>('cipherlink', 9, {
     upgrade(database, oldVersion) {
       // Version 1 -> 2 migration
       if (oldVersion < 2) {
@@ -123,6 +133,14 @@ export async function getDB(): Promise<IDBPDatabase<CipherLinkDB>> {
         }
       }
 
+      // Version 8 -> 9 migration: encrypt device identity key & recreate store
+      if (oldVersion < 9) {
+        if (database.objectStoreNames.contains('deviceIdentity')) {
+          database.deleteObjectStore('deviceIdentity');
+        }
+        database.createObjectStore('deviceIdentity', { keyPath: 'id' });
+      }
+
       // Friends store
       if (!database.objectStoreNames.contains('friends')) {
         const friendsStore = database.createObjectStore('friends', { keyPath: 'publicKey' });
@@ -145,6 +163,7 @@ export async function getDB(): Promise<IDBPDatabase<CipherLinkDB>> {
 // ── SESSION-ONLY MODE () ─────────────────────────────────────────────────────
 
 let sessionIdentity: (LocalIdentity & { localUsername: string }) | null = null;
+let sessionDeviceIdentity: DeviceIdentity | null = null;
 let isSessionOnlyMode = false;
 const sessionRatchetStore = new Map<string, string>();
 const sessionMessageStore: Record<string, any> = {};
@@ -175,6 +194,7 @@ export function getSessionOnlyMode(): boolean {
  */
 export function clearSessionMemory(): void {
   sessionIdentity = null;
+  sessionDeviceIdentity = null;
   sessionRatchetStore.clear();
   for (const key of Object.keys(sessionMessageStore)) {
     delete sessionMessageStore[key];
@@ -194,6 +214,7 @@ export async function saveIdentityEncrypted(
   if (isSessionOnlyMode) {
     // Session-only mode — store only in memory, never persisted
     sessionIdentity = identity;
+    sessionSettingsStore.set('displayName', identity.localUsername);
     return;
   }
 
@@ -213,6 +234,7 @@ export async function saveIdentityEncrypted(
     data: encrypted.data,
     publicKey: identity.publicKey, // Unencrypted for server sync (not secret)
   });
+  await database.put('settings', identity.localUsername, 'displayName');
 }
 
 export async function getIdentityEncrypted(
@@ -233,6 +255,7 @@ export async function getIdentityEncrypted(
       pin
     );
     const identity = JSON.parse(decryptedJson);
+    await database.put('settings', identity.localUsername, 'displayName');
     return identity;
   } catch {
     // Wrong PIN — decryption fails (AES-GCM auth tag mismatch)
@@ -298,82 +321,80 @@ export async function clearIdentity(): Promise<void> {
 
 // ── DEVICE IDENTITY OPERATIONS ───────────────────────────────────────────────
 
-// Generate and retrieve a non-extractable AES-GCM device encryption key
-async function getDeviceEncryptionKey(): Promise<CryptoKey> {
-  const database = await getDB();
-  let key = await database.get('deviceCryptoKey', 'dek');
-  if (!key) {
-    key = await crypto.subtle.generateKey(
-      { name: 'AES-GCM', length: 256 },
-      false, // non-extractable
-      ['encrypt', 'decrypt']
-    );
-    await database.put('deviceCryptoKey', key, 'dek');
-  }
-  return key;
-}
-
 export async function saveDeviceIdentity(
   publicKey: string,
   privateKey: string,
-  deviceName: string
+  deviceName: string,
+  identityPrivKeyBytes?: Uint8Array
 ): Promise<void> {
-  const dek = await getDeviceEncryptionKey();
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const encrypted = await crypto.subtle.encrypt(
-    { name: 'AES-GCM', iv },
-    dek,
-    toArrayBuffer(new TextEncoder().encode(privateKey))
+  if (isSessionOnlyMode) {
+    sessionDeviceIdentity = {
+      id: 'current',
+      publicKey,
+      privateKey,
+      deviceName,
+    };
+    return;
+  }
+
+  if (!identityPrivKeyBytes) {
+    throw new Error('Identity private key bytes are required to save device identity');
+  }
+
+  const encrypted = await encryptWithSecret(
+    privateKey,
+    identityPrivKeyBytes,
+    "CipherLink-DeviceKey-v1"
   );
 
   const database = await getDB();
   await database.put('deviceIdentity', {
     id: 'current',
     publicKey,
-    privateKey: JSON.stringify({
-      iv: bytesToHex(iv),
-      ciphertext: bytesToHex(new Uint8Array(encrypted))
-    }),
+    encryptedPrivateKey: encrypted,
     deviceName,
   });
 }
 
-export async function getDeviceIdentity(): Promise<DeviceIdentity | null> {
+export async function getDeviceIdentity(
+  identityPrivKeyBytes?: Uint8Array
+): Promise<DeviceIdentity | null> {
+  if (isSessionOnlyMode) {
+    return sessionDeviceIdentity;
+  }
+
   const database = await getDB();
-  const record = (await database.get('deviceIdentity', 'current')) as DeviceIdentity | undefined;
+  const record = await database.get('deviceIdentity', 'current');
   if (!record) return null;
 
-  try {
-    // If it's already a JSON encrypted object
-    if (record.privateKey.startsWith('{"iv":')) {
-      const { iv, ciphertext } = JSON.parse(record.privateKey);
-      const dek = await getDeviceEncryptionKey();
-      const decrypted = await crypto.subtle.decrypt(
-        { name: 'AES-GCM', iv: toArrayBuffer(hexToBytes(iv)) },
-        dek,
-        toArrayBuffer(hexToBytes(ciphertext))
-      );
+  if (!identityPrivKeyBytes) {
+    return null; // Decryption requires key bytes
+  }
 
-      return {
-        ...record,
-        privateKey: new TextDecoder().decode(decrypted)
-      };
-    }
-    
-    // Fallback/Legacy migration: If it was plain, encrypt it now
-    await saveDeviceIdentity(record.publicKey, record.privateKey, record.deviceName);
-    return record;
+  try {
+    const decrypted = await decryptWithSecret(
+      record.encryptedPrivateKey,
+      identityPrivKeyBytes,
+      "CipherLink-DeviceKey-v1"
+    );
+    return {
+      id: record.id,
+      publicKey: record.publicKey,
+      privateKey: decrypted,
+      deviceName: record.deviceName,
+    };
   } catch (err) {
     return null;
   }
 }
 
-export async function hasDeviceIdentity(): Promise<boolean> {
-  const identity = await getDeviceIdentity();
+export async function hasDeviceIdentity(identityPrivKeyBytes?: Uint8Array): Promise<boolean> {
+  const identity = await getDeviceIdentity(identityPrivKeyBytes);
   return !!identity;
 }
 
 export async function clearDeviceIdentity(): Promise<void> {
+  sessionDeviceIdentity = null;
   const database = await getDB();
   await database.clear('deviceIdentity');
 }
@@ -381,6 +402,7 @@ export async function clearDeviceIdentity(): Promise<void> {
 export async function updateUsername(publicKey: string, username: string, pin: string): Promise<void> {
   if (isSessionOnlyMode && sessionIdentity) {
     sessionIdentity.localUsername = username;
+    sessionSettingsStore.set('displayName', username);
     return;
   }
 
@@ -388,6 +410,8 @@ export async function updateUsername(publicKey: string, username: string, pin: s
   if (identity) {
     identity.localUsername = username;
     await saveIdentityEncrypted(identity, pin);
+    const database = await getDB();
+    await database.put('settings', username, 'displayName');
   }
 }
 

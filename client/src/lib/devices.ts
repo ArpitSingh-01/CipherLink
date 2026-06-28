@@ -1,4 +1,4 @@
-import { generateEd25519KeyPair, getDeviceName } from './crypto';
+import { generateEd25519KeyPair, getDeviceName, hexToBytes } from './crypto';
 import { getDeviceIdentity, saveDeviceIdentity, getIdentity, getDB } from './storage';
 import { authenticatedFetch } from './auth';
 import type { Device } from '@shared/schema';
@@ -12,14 +12,15 @@ import { ed25519 } from '@noble/curves/ed25519.js';
  * 2. If not, generates a new one.
  * 3. Registers the device public key with the backend.
  */
-export async function ensureDeviceRegistered(): Promise<void> {
+export async function ensureDeviceRegistered(identityPrivKeyBytes?: Uint8Array): Promise<void> {
     const identity = await getIdentity();
     if (!identity) {
         // Cannot register a device without a user identity
         return;
     }
 
-    let deviceIdentity = await getDeviceIdentity();
+    const keyBytes = identityPrivKeyBytes ?? hexToBytes(identity.privateKey);
+    let deviceIdentity = await getDeviceIdentity(keyBytes);
 
     if (!deviceIdentity) {
         // Generate a new key pair for device identity
@@ -27,10 +28,10 @@ export async function ensureDeviceRegistered(): Promise<void> {
         const deviceName = getDeviceName();
 
         // Save locally first
-        await saveDeviceIdentity(keyPair.publicKey, keyPair.privateKey, deviceName);
+        await saveDeviceIdentity(keyPair.publicKey, keyPair.privateKey, deviceName, keyBytes);
         
         // Refresh local variable
-        deviceIdentity = await getDeviceIdentity();
+        deviceIdentity = await getDeviceIdentity(keyBytes);
     }
 
     // Idempotency guard: skip registration if already completed for this device key.

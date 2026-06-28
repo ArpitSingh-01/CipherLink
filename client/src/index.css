@@ -203,9 +203,7 @@
     pointer-events: none;
   }
 
-  /* Elevation system */
-  .no-default-hover-elevate {}
-  .no-default-active-elevate {}
+
 
   .toggle-elevate::before,
   .toggle-elevate-2::before {
@@ -331,6 +329,22 @@
 
   .perspective-\[1200px\] {
     perspective: 1200px;
+  }
+
+  /* Glassmorphism and glow utilities */
+  .bg-glass {
+    background: rgba(11, 14, 22, 0.6);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+  .border-glass {
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+  .glow-teal {
+    filter: drop-shadow(0 0 15px rgba(34, 217, 182, 0.3));
+  }
+  .glow-ember {
+    filter: drop-shadow(0 0 15px rgba(255, 82, 82, 0.3));
   }
 }
 

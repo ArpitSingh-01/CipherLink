@@ -28,3 +28,17 @@ export async function closeDatabase(): Promise<void> {
     logError('closeDatabase', error);
   }
 }
+
+// Health check database connection at startup
+export async function testConnection(): Promise<void> {
+  try {
+    await client`SELECT 1`;
+    if (config.isDev) {
+      process.stdout.write('Database connection test successful\n');
+    }
+  } catch (error) {
+    console.error('CRITICAL: Database connection test failed! Database URL might be invalid or unreachable.');
+    console.error(error);
+    process.exit(1);
+  }
+}

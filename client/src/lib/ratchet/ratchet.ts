@@ -22,8 +22,39 @@ export interface IPersistentHooks {
 
 export let persistentHooks: IPersistentHooks | null = null;
 
+type PendingTOFUCheck = {
+  type: 'identity' | 'ratchetKey';
+  sessionId: string;
+  fingerprint: string;
+  resolve: (allowed: boolean) => void;
+};
+const pendingTOFUQueue: PendingTOFUCheck[] = [];
+
 export function setPersistentHooks(hooks: IPersistentHooks) {
   persistentHooks = hooks;
+  const queue = pendingTOFUQueue.splice(0);
+  for (const item of queue) {
+    const fn = item.type === 'identity'
+      ? hooks.onIdentityObserved
+      : hooks.onRatchetKeyObserved;
+    fn(item.sessionId, item.fingerprint).then(item.resolve);
+  }
+}
+
+async function checkTOFU(
+  type: 'identity' | 'ratchetKey',
+  sessionId: string,
+  fingerprint: string
+): Promise<boolean> {
+  if (persistentHooks) {
+    const fn = type === 'identity'
+      ? persistentHooks.onIdentityObserved
+      : persistentHooks.onRatchetKeyObserved;
+    return fn(sessionId, fingerprint);
+  }
+  return new Promise(resolve => {
+    pendingTOFUQueue.push({ type, sessionId, fingerprint, resolve });
+  });
 }
 
 export function serializeSessionState(session: SessionState): string {
@@ -298,17 +329,10 @@ export async function initSession(
   // 1. The session is ephemeral — no persistent trust decision is made
   // 2. Once hooks are registered, subsequent sessions use real TOFU
   // 3. A console warning alerts developers to fix the hook registration order
-  if (!persistentHooks) {
-    console.warn('[CipherLink] persistentHooks not set during initSession — using ephemeral TOFU fallback');
-  }
-
   const remoteFp = await getIdentityFingerprint(remoteIdentityPub);
-  if (persistentHooks) {
-    // Pass real sessionId as the trust slot key
-    const fpAllowed = await persistentHooks.onIdentityObserved(sessionId, remoteFp);
-    if (!fpAllowed) {
-      throw new Error("MITM Protection: Identity rejected by persistent TOFU storage");
-    }
+  const fpAllowed = await checkTOFU('identity', sessionId, remoteFp);
+  if (!fpAllowed) {
+    throw new Error("MITM Protection: Identity rejected by persistent TOFU storage");
   }
 
   // 4-byte random prefix + 8-byte counter = 12-byte nonce
@@ -381,15 +405,25 @@ export function buildAAD(header: Uint8Array, createdAt: number, expiresAt: numbe
 }
 
 function serializeHeader(header: Header): Uint8Array {
-  return encoder.encode(JSON.stringify({
-    version: header.version,
-    cipher: header.cipher,
-    direction: header.direction,
-    ratchetPubKey: toBase64(header.ratchetPubKey),
-    messageNumber: header.messageNumber,
-    previousChainLength: header.previousChainLength,
-    sessionId: header.sessionId
-  }));
+  const enc = new TextEncoder();
+  const ratchetPubB64 = bytesToBase64(header.ratchetPubKey);
+  const sessionIdBytes = enc.encode(header.sessionId);
+  const ratchetPubBytes = enc.encode(ratchetPubB64);
+
+  const buf = new Uint8Array(
+    1 + 1 + 1 + 2 + ratchetPubBytes.length + 4 + 4 + 2 + sessionIdBytes.length
+  );
+  let off = 0;
+  buf[off++] = header.version;
+  buf[off++] = header.cipher === 'AES-256-GCM' ? 0x01 : 0x00;
+  buf[off++] = header.direction;
+  new DataView(buf.buffer).setUint16(off, ratchetPubBytes.length, false); off += 2;
+  buf.set(ratchetPubBytes, off); off += ratchetPubBytes.length;
+  new DataView(buf.buffer).setUint32(off, header.messageNumber, false); off += 4;
+  new DataView(buf.buffer).setUint32(off, header.previousChainLength, false); off += 4;
+  new DataView(buf.buffer).setUint16(off, sessionIdBytes.length, false); off += 2;
+  buf.set(sessionIdBytes, off);
+  return buf;
 }
 
 function checkNonce(session: SessionState, msgId: string): void {
@@ -434,13 +468,9 @@ export async function dhRatchet(session: SessionState, receivedRatchetKey: Uint8
   // dhRatchet can fire before chat-page.tsx mounts and calls setPersistentHooks().
   // Auto-allow is safe here — ratchet key observation is a secondary trust check;
   // the primary TOFU is the identity fingerprint verified during initSession().
-  if (!persistentHooks) {
-    console.warn('[CipherLink] persistentHooks not set during dhRatchet — using ephemeral auto-allow fallback');
-  } else {
-    const rKfp = await getIdentityFingerprint(receivedRatchetKey);
-    const rKallowed = await persistentHooks.onRatchetKeyObserved(session.sessionId, rKfp);
-    if (!rKallowed) throw new Error("DH Ratchet Key rejected by trust anchor.");
-  }
+  const rKfp = await getIdentityFingerprint(receivedRatchetKey);
+  const rKallowed = await checkTOFU('ratchetKey', session.sessionId, rKfp);
+  if (!rKallowed) throw new Error("DH Ratchet Key rejected by trust anchor.");
 
   // Execute crypto first, commit state at the very end
   const dh1 = dh(session.ratchetPrivateKey, receivedRatchetKey);

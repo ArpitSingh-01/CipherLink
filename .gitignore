@@ -35,3 +35,10 @@ npm-debug.log*
 # Vite
 vite.config.ts.*
 CIPHERLINK_AUDIT.md
+.agents/skills/advanced-debugging/SKILL.md
+.agents/skills/obsidian-vault/SKILL.md
+.agents/skills/react-typescript-expert/SKILL.md
+.agents/skills/supabase-drizzle/SKILL.md
+.agents/skills/postman-mcp/SKILL.md
+.agents/skills/performance-optimization/SKILL.md
+.agents/skills/security-cryptography/SKILL.md

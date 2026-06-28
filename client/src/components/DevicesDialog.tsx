@@ -48,9 +48,12 @@ export function DevicesDialog() {
             const data = await getActiveDevices();
             setDevices(data);
 
-            const current = await getDeviceIdentity();
-            if (current) {
-                setCurrentDeviceKey(current.publicKey);
+            const identity = await getIdentity();
+            if (identity) {
+                const current = await getDeviceIdentity(hexToBytes(identity.privateKey));
+                if (current) {
+                    setCurrentDeviceKey(current.publicKey);
+                }
             }
             await fetchLinkingRequests();
         } catch (error) {
@@ -91,7 +94,7 @@ export function DevicesDialog() {
             // The server stores userRecord.devicePublicKey = Alice's Ed25519 device public key
             // and verifies: ed25519.verify(sig, msg, aliceDevicePublicKey).
             // If we sign with identity.privateKey (X25519), the signature will NOT verify.
-            const deviceIdentity = await getDeviceIdentity();
+            const deviceIdentity = await getDeviceIdentity(hexToBytes(identity.privateKey));
             if (!deviceIdentity) throw new Error("Device not registered. Please refresh.");
 
             const targetDeviceKey = request.device_public_key || request.devicePublicKey;

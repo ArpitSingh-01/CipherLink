@@ -60,23 +60,28 @@ function MessageBubble({
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
+      initial={{ opacity: 0, x: isMine ? 30 : -30, scale: 0.95 }}
+      animate={{ opacity: 1, x: 0, scale: 1 }}
+      transition={{ type: "spring", stiffness: 350, damping: 25 }}
       className={`flex ${isMine ? 'justify-end' : 'justify-start'} mb-3`}
     >
       <div className={`max-w-[75%] ${isMine ? 'order-2' : ''}`}>
         <div
-          className={`px-4 py-2.5 rounded-2xl ${
+          className={`px-4 py-2.5 rounded-2xl transition-all duration-300 ${
             isMine
               ? 'bg-primary text-primary-foreground rounded-br-md'
               : 'bg-muted rounded-bl-md'
+          } ${
+            isExpiringSoon
+              ? 'border border-amber-500/50 glow-ember animate-destruct bg-amber-950/10'
+              : ''
           }`}
         >
           <p className="text-sm break-words">{message.plaintext}</p>
         </div>
         <div className={`flex items-center gap-2 mt-1 text-xs text-muted-foreground ${isMine ? 'justify-end' : ''}`}>
           <span>{format(new Date(message.createdAt), 'HH:mm')}</span>
-          <div className={`flex items-center gap-1 ${isExpiringSoon ? 'text-destructive animate-destruct' : ''}`}>
+          <div className={`flex items-center gap-1 ${isExpiringSoon ? 'text-amber-500 animate-destruct' : ''}`}>
             <Timer className="w-3 h-3" />
             <span>{formatTimeLeft(timeLeft)}</span>
           </div>
@@ -96,6 +101,7 @@ function ChatHeader({
   isMobile,
   onRename,
   onVerify,
+  isOnline,
 }: {
   friend: LocalFriend;
   onBlock: () => void;
@@ -105,6 +111,7 @@ function ChatHeader({
   isMobile: boolean;
   onRename: () => void;
   onVerify: () => void;
+  isOnline: boolean;
 }) {
   const initials = friend.displayName
     .split(' ')
@@ -153,9 +160,16 @@ function ChatHeader({
             </Badge>
           )}
         </div>
-        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-          <Lock className="w-3 h-3" />
-          <span>End-to-end encrypted</span>
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <div className="flex items-center gap-1">
+            <Lock className="w-3 h-3" />
+            <span>End-to-end encrypted</span>
+          </div>
+          <span className="opacity-40">•</span>
+          <div className="flex items-center gap-1">
+            <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-green-500 shadow-[0_0_8px_#22c55e]' : 'bg-destructive shadow-[0_0_8px_#ef4444]'} animate-pulse`} />
+            <span className="text-[10px] uppercase font-mono tracking-wider">{isOnline ? 'Online' : 'Offline'}</span>
+          </div>
         </div>
       </div>
       <DropdownMenu>
@@ -201,6 +215,10 @@ interface MessageThreadProps {
   onVerifySafetyNumber: () => void;
   onBack: () => void;
   isMobile: boolean;
+  onLoadOlder: () => Promise<void>;
+  hasMore: boolean;
+  olderLoading: boolean;
+  isTyping: boolean;
 }
 
 // ── Main MessageThread Component ──────────────────────────────────────────────
@@ -215,12 +233,69 @@ export function MessageThread({
   onVerifySafetyNumber,
   onBack,
   isMobile,
+  onLoadOlder,
+  hasMore,
+  olderLoading,
+  isTyping,
 }: MessageThreadProps) {
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const previousScrollHeight = useRef<number>(0);
+  const previousScrollTop = useRef<number>(0);
+
+  // Auto-scroll to bottom on first load or when a new message arrives
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el) {
+      // If we didn't prepend, scroll to bottom
+      const wasAtBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 100;
+      if (wasAtBottom || messages.length <= 50) {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }
+    }
   }, [messages]);
+
+  // Adjust scroll position when older messages are prepended
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    if (previousScrollHeight.current > 0) {
+      const delta = el.scrollHeight - previousScrollHeight.current;
+      if (delta > 0 && el.scrollTop === 0) {
+        el.scrollTop = delta;
+      }
+    }
+
+    previousScrollHeight.current = el.scrollHeight;
+    previousScrollTop.current = el.scrollTop;
+  }, [messages]);
+
+  const handleScroll = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    // Detect top scroll for pagination
+    if (el.scrollTop === 0 && hasMore && !olderLoading) {
+      onLoadOlder();
+    }
+
+    previousScrollHeight.current = el.scrollHeight;
+    previousScrollTop.current = el.scrollTop;
+  };
 
   return (
     <>
@@ -233,9 +308,14 @@ export function MessageThread({
         onBack={onBack}
         isMobile={isMobile}
         onVerify={onVerifySafetyNumber}
+        isOnline={isOnline}
       />
 
-      <ScrollArea className="flex-1 p-4">
+      <div
+        ref={scrollRef}
+        onScroll={handleScroll}
+        className="flex-1 overflow-y-auto p-4 space-y-3"
+      >
         {messagesLoading ? (
           <div className="flex items-center justify-center h-full">
             <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
@@ -250,15 +330,27 @@ export function MessageThread({
           </div>
         ) : (
           <>
+            {olderLoading && (
+              <div className="flex justify-center py-2">
+                <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              </div>
+            )}
             {messages
               .filter((msg) => new Date(msg.expiresAt) > new Date())
               .map((msg) => (
                 <MessageBubble key={msg.id} message={msg} isMine={msg.isMine} />
               ))}
+            {isTyping && (
+              <div className="flex items-center gap-1 p-3 bg-muted/40 rounded-2xl rounded-bl-sm w-16 mb-3 animate-pulse">
+                <span className="w-1.5 h-1.5 bg-zinc-500 rounded-full animate-bounce" style={{ animationDelay: '0s' }} />
+                <span className="w-1.5 h-1.5 bg-zinc-500 rounded-full animate-bounce" style={{ animationDelay: '0.15s' }} />
+                <span className="w-1.5 h-1.5 bg-zinc-500 rounded-full animate-bounce" style={{ animationDelay: '0.3s' }} />
+              </div>
+            )}
             <div ref={messagesEndRef} />
           </>
         )}
-      </ScrollArea>
+      </div>
 
       {isBlocked && (
         <div className="p-4 border-t border-border">

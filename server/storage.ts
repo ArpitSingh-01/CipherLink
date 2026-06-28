@@ -57,7 +57,7 @@ export interface IStorage {
 
   // Messages
   createMessage(message: InsertMessage): Promise<Message>;
-  getMessages(userPublicKey: string, friendPublicKey: string): Promise<Message[]>;
+  getMessages(userPublicKey: string, friendPublicKey: string, options?: { before?: string; limit?: number }): Promise<Message[]>;
   getAllMessagesForUser(publicKey: string): Promise<Message[]>;
   deleteExpiredMessages(): Promise<void>;
   deleteMessage(id: string): Promise<void>;
@@ -176,7 +176,6 @@ export class MemStorage implements IStorage {
       id,
       publicKey: normalizedKey,
       devicePublicKey: null,
-      displayName: insertUser.displayName || null,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -409,19 +408,39 @@ export class MemStorage implements IStorage {
     return message;
   }
 
-  async getMessages(userPublicKey: string, friendPublicKey: string): Promise<Message[]> {
+  async getMessages(
+    userPublicKey: string,
+    friendPublicKey: string,
+    options?: { before?: string; limit?: number }
+  ): Promise<Message[]> {
     const now = new Date();
     const normalizedUser = userPublicKey.toLowerCase().trim();
     const normalizedFriend = friendPublicKey.toLowerCase().trim();
-    return Array.from(this.messages.values())
+    
+    let msgs = Array.from(this.messages.values())
       .filter((msg) => {
         const isConversation =
           (msg.senderPublicKey === normalizedUser && msg.receiverPublicKey === normalizedFriend) ||
           (msg.senderPublicKey === normalizedFriend && msg.receiverPublicKey === normalizedUser);
         const notExpired = msg.expiresAt > now;
         return isConversation && notExpired;
-      })
-      .sort((a, b) => a.createdAt!.getTime() - b.createdAt!.getTime());
+      });
+
+    msgs.sort((a, b) => b.id.localeCompare(a.id)); // sort descending by ID (newest first)
+
+    if (options?.before) {
+      const idx = msgs.findIndex(m => m.id === options.before);
+      if (idx !== -1) {
+        msgs = msgs.slice(idx + 1);
+      }
+    }
+
+    if (options?.limit) {
+      msgs = msgs.slice(0, options.limit);
+    }
+
+    msgs.reverse(); // oldest first for chronological UI
+    return msgs;
   }
 
   async getAllMessagesForUser(publicKey: string): Promise<Message[]> {
@@ -588,14 +607,8 @@ export class MemStorage implements IStorage {
   // Batch display name lookup
   async getUsersDisplayNames(publicKeys: string[]): Promise<Map<string, string | null>> {
     const result = new Map<string, string | null>();
-    const entries = await Promise.all(
-      publicKeys.map(async (key) => {
-        const user = await this.getUser(key);
-        return [key.toLowerCase().trim(), user?.displayName ?? null] as const;
-      })
-    );
-    for (const [k, v] of entries) {
-      result.set(k, v);
+    for (const key of publicKeys) {
+      result.set(key.toLowerCase().trim(), null);
     }
     return result;
   }

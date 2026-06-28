@@ -235,13 +235,48 @@ export function ChatPage() {
   const { toast } = useToast();
   const queryClientRef = useQueryClient();
 
-  // PIN rate-limiting: max 5 attempts before 30-second lockout
-  const pinAttemptCount = useRef(0);
-  const pinLockoutUntil = useRef<number>(0);
+
+  // Typing state for current selected friend
+  const [isFriendTyping, setIsFriendTyping] = useState(false);
+  const typingTimer = useRef<NodeJS.Timeout | null>(null);
+
+  const handleFriendTyping = (from: string) => {
+    if (!state.selectedFriend) return;
+    const friendFp = state.selectedFriend.publicKey.slice(0, 16).toLowerCase();
+    if (from.toLowerCase() === friendFp) {
+      setIsFriendTyping(true);
+      if (typingTimer.current) clearTimeout(typingTimer.current);
+      typingTimer.current = setTimeout(() => {
+        setIsFriendTyping(false);
+      }, 3000); // typing indicator expires after 3 seconds
+    }
+  };
+
+  const lastTypingSent = useRef<number>(0);
+  const handleTyping = async () => {
+    const now = Date.now();
+    if (now - lastTypingSent.current < 3000) return;
+    lastTypingSent.current = now;
+    if (state.selectedFriend?.publicKey && state.identity) {
+      // Send typing signal to friend
+      await authenticatedFetch('/api/typing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ receiverPublicKey: state.selectedFriend.publicKey }),
+        credentials: 'include',
+      }).catch(() => {});
+    }
+  };
+
+  // Reset typing state when switching friends
+  useEffect(() => {
+    setIsFriendTyping(false);
+    if (typingTimer.current) clearTimeout(typingTimer.current);
+  }, [state.selectedFriend?.publicKey]);
 
   // Supabase Realtime push notifications — makes messages appear instantly (<100ms)
   // instead of waiting for the next poll cycle
-  useNotifications(state.identity?.publicKey);
+  useNotifications(state.identity?.publicKey, handleFriendTyping);
 
   useEffect(() => {
     const handleResize = () => {
@@ -371,40 +406,19 @@ export function ChatPage() {
     ensureSessionCryptoVersion().catch(() => {});
   }, [state.identity]);
 
-  const handlePinUnlock = async (enteredPin: string) => {
-    // Rate-limit check
-    const now = Date.now();
-    if (now < pinLockoutUntil.current) {
-      const remaining = Math.ceil((pinLockoutUntil.current - now) / 1000);
-      setPinError(`Too many attempts. Try again in ${remaining}s.`);
-      return;
-    }
-    if (enteredPin.length < MIN_PIN_LENGTH) {
-      setPinError(`PIN must be at least ${MIN_PIN_LENGTH} characters`);
-      return;
-    }
+  const handlePinUnlock = async (enteredPin: string): Promise<boolean> => {
     try {
       const identity = await getIdentityEncrypted(enteredPin);
       if (!identity) {
-        pinAttemptCount.current += 1;
-        if (pinAttemptCount.current >= 5) {
-          pinLockoutUntil.current = Date.now() + 30_000;
-          pinAttemptCount.current = 0;
-          setPinError('Too many failed attempts. Locked for 30 seconds.');
-        } else {
-          setPinError(`Invalid PIN. ${5 - pinAttemptCount.current} attempt(s) remaining.`);
-        }
-        return;
+        return false;
       }
-      // Success: reset rate-limit counters
-      pinAttemptCount.current = 0;
-      pinLockoutUntil.current = 0;
       await setDecryptedIdentity(identity);
       setPinPromptOpen(false);
       setPinError('');
       // Reload data after unlock
       const friends = await getAllFriends();
-      setState({
+      setState(prev => ({
+        ...prev,
         identity: {
           publicKey: identity.publicKey,
           privateKey: identity.privateKey,
@@ -412,16 +426,10 @@ export function ChatPage() {
         },
         selectedFriend: null,
         friends,
-      });
+      }));
+      return true;
     } catch {
-      pinAttemptCount.current += 1;
-      if (pinAttemptCount.current >= 5) {
-        pinLockoutUntil.current = Date.now() + 30_000;
-        pinAttemptCount.current = 0;
-        setPinError('Too many failed attempts. Locked for 30 seconds.');
-      } else {
-        setPinError(`Invalid PIN. ${5 - pinAttemptCount.current} attempt(s) remaining.`);
-      }
+      return false;
     }
   };
 
@@ -431,7 +439,7 @@ export function ChatPage() {
     queryFn: async () => {
       if (!state.identity || !state.selectedFriend) return [];
       const res = await authenticatedFetch(
-        `/api/messages/${state.identity.publicKey}?friendPublicKey=${encodeURIComponent(state.selectedFriend.publicKey)}`,
+        `/api/messages/${state.identity.publicKey}?friendPublicKey=${encodeURIComponent(state.selectedFriend.publicKey)}&limit=50`,
         { credentials: 'include' }
       );
       if (!res.ok) throw new Error('Failed to fetch messages');
@@ -440,6 +448,64 @@ export function ChatPage() {
     enabled: !!state.selectedFriend && !!state.identity,
     refetchInterval: 30000, // Safety fallback — Supabase Realtime handles instant delivery
   });
+
+  // Pagination states
+  const [chatMessages, setChatMessages] = useState<any[]>([]);
+  const [olderLoading, setOlderLoading] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+
+  // Reset pagination state when switching friends
+  useEffect(() => {
+    setChatMessages([]);
+    setHasMore(true);
+    setOlderLoading(false);
+  }, [state.selectedFriend?.publicKey]);
+
+  // Sync new serverMessages with our local chatMessages state
+  useEffect(() => {
+    if (serverMessages && Array.isArray(serverMessages)) {
+      setChatMessages(prev => {
+        const map = new Map();
+        prev.forEach(m => map.set(m.id, m));
+        serverMessages.forEach(m => map.set(m.id, m));
+        const merged = Array.from(map.values());
+        merged.sort((a, b) => a.id.localeCompare(b.id)); // sort chronologically by ID (UUIDv7)
+        return merged;
+      });
+    }
+  }, [serverMessages]);
+
+  const loadOlderMessages = async () => {
+    if (olderLoading || !hasMore || !state.identity || !state.selectedFriend || chatMessages.length === 0) return;
+    setOlderLoading(true);
+    try {
+      const firstMsgId = chatMessages[0].id;
+      const res = await authenticatedFetch(
+        `/api/messages/${state.identity.publicKey}?friendPublicKey=${encodeURIComponent(state.selectedFriend.publicKey)}&before=${firstMsgId}&limit=50`,
+        { credentials: 'include' }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        if (data.length < 50) {
+          setHasMore(false);
+        }
+        if (data.length > 0) {
+          setChatMessages(prev => {
+            const map = new Map();
+            data.forEach((m: any) => map.set(m.id, m));
+            prev.forEach(m => map.set(m.id, m));
+            const merged = Array.from(map.values());
+            merged.sort((a, b) => a.id.localeCompare(b.id));
+            return merged;
+          });
+        }
+      }
+    } catch (err) {
+      console.error("Failed to load older messages", err);
+    } finally {
+      setOlderLoading(false);
+    }
+  };
 
   // Store optimistic sent messages locally
   const [sentMessages, setSentMessages] = useState<DecryptedMessage[]>([]);
@@ -455,12 +521,15 @@ export function ChatPage() {
   // Decrypt messages when they change
   useEffect(() => {
     const decryptMessages = async () => {
-      if (!serverMessages || !state.identity || !state.selectedFriend) return;
+      if (!chatMessages || chatMessages.length === 0 || !state.identity || !state.selectedFriend) {
+        setMessages([]);
+        return;
+      }
 
-      const deviceIdentity = await getDeviceIdentity();
+      const deviceIdentity = await getDeviceIdentity(hexToBytes(state.identity.privateKey));
       const decrypted: DecryptedMessage[] = [];
 
-      for (const msg of serverMessages as any[]) {
+      for (const msg of chatMessages) {
         const isSentByMe = msg.senderPublicKey === state.identity.publicKey;
         try {
           if (decryptedCache.current.has(msg.id)) {
@@ -517,57 +586,63 @@ export function ChatPage() {
 
               let session = await loadSession(hexToBytes(state.identity!.publicKey), peerIdentityForSession);
 
-              if (!session && ephemeralPublicKey && ephemeralPublicKey !== '00'.repeat(32)) {
-                try {
-                  const reqSenderEph = hexToBytes(ephemeralPublicKey);
-                  const peerDevicesRes = await authenticatedFetch(`/api/users/${encodeURIComponent(msg.senderPublicKey)}/devices`);
-                  if (!peerDevicesRes.ok) throw new Error('Could not fetch peer devices');
-                  const peerDevices = await peerDevicesRes.json();
+              if (!session) {
+                const version = targetPayload.payloadVersion ?? 1;
+                let senderEphBytes: Uint8Array | null = null;
+                if (version === 2) {
+                  senderEphBytes = hexToBytes(targetPayload.header.ratchetPubKey);
+                } else if (ephemeralPublicKey && ephemeralPublicKey !== '00'.repeat(32)) {
+                  senderEphBytes = hexToBytes(ephemeralPublicKey);
+                }
 
-                  const peerDevice = peerDevices.find((d: any) => d.devicePublicKey === peerDeviceHex);
-                  if (!peerDevice) throw new Error(`Untrusted device ${peerDeviceHex}`);
+                if (senderEphBytes) {
+                  try {
+                    const peerDevicesRes = await authenticatedFetch(`/api/users/${encodeURIComponent(msg.senderPublicKey)}/devices`);
+                    if (!peerDevicesRes.ok) throw new Error('Could not fetch peer devices');
+                    const peerDevices = await peerDevicesRes.json();
 
-                  const { ed25519 } = await import('@noble/curves/ed25519.js');
-                  const sigMsg = new TextEncoder().encode(peerDevice.devicePublicKey);
-                  const sigBytes = hexToBytes(peerDevice.identitySignature);
+                    const peerDevice = peerDevices.find((d: any) => d.devicePublicKey === peerDeviceHex);
+                    if (!peerDevice) throw new Error(`Untrusted device ${peerDeviceHex}`);
 
-                  // The identitySignature was signed with the primary device's Ed25519 key.
-                  // msg.senderPublicKey is the X25519 identity key — WRONG curve, wrong key, wrong for verify.
-                  // The primary (TOFU) device is self-signed: ed25519.verify(sig, devKey, devKey).
-                  // Secondary devices are endorsed by the primary: ed25519.verify(sig, devKey, primaryDevKey).
-                  // In both cases the verifying key is an Ed25519 devicePublicKey, NOT the X25519 identity key.
-                  // We find the primary device by checking which device is self-signed (TOFU bootstrap).
-                  const primaryDevice = peerDevices.find((d: any) => {
-                    try {
-                      const selfSig = hexToBytes(d.identitySignature);
-                      const selfMsg = new TextEncoder().encode(d.devicePublicKey);
-                      const selfKey = hexToBytes(d.devicePublicKey);
-                      return ed25519.verify(selfSig, selfMsg, selfKey);
-                    } catch { return false; }
-                  });
-                  const verifyingKey = primaryDevice
-                    ? hexToBytes(primaryDevice.devicePublicKey)
-                    : hexToBytes(peerDevice.devicePublicKey); // Fallback: assume self-signed (TOFU)
+                    const { ed25519 } = await import('@noble/curves/ed25519.js');
+                    const sigMsg = new TextEncoder().encode(peerDevice.devicePublicKey);
+                    const sigBytes = hexToBytes(peerDevice.identitySignature);
 
-                  if (!ed25519.verify(sigBytes, sigMsg, verifyingKey)) {
-                    throw new Error('FORGED device signature detected');
+                    // The identitySignature was signed with the primary device's Ed25519 key.
+                    // msg.senderPublicKey is the X25519 identity key — WRONG curve, wrong key, wrong for verify.
+                    // The primary (TOFU) device is self-signed: ed25519.verify(sig, devKey, devKey).
+                    // Secondary devices are endorsed by the primary: ed25519.verify(sig, devKey, primaryDevKey).
+                    // In both cases the verifying key is an Ed25519 devicePublicKey, NOT the X25519 identity key.
+                    // We find the primary device by checking which device is self-signed (TOFU bootstrap).
+                    const primaryDevice = peerDevices.find((d: any) => {
+                      try {
+                        const devSigBytes = hexToBytes(d.identitySignature);
+                        const devMsg = new TextEncoder().encode(d.devicePublicKey);
+                        return ed25519.verify(devSigBytes, devMsg, hexToBytes(d.devicePublicKey));
+                      } catch {
+                        return false;
+                      }
+                    });
+
+                    const primaryDevKey = primaryDevice ? hexToBytes(primaryDevice.devicePublicKey) : peerPubForSession;
+                    if (!ed25519.verify(sigBytes, sigMsg, primaryDevKey)) {
+                      console.error('[SECURITY] Rejected secondary device registration signature — possible server compromise');
+                      throw new Error('Rejected secondary device registration signature');
+                    }
+
+                    // Handshake uses peer identity X25519 key, NOT Ed25519 device key
+                    const res = await initSession(
+                      { privateKey: hexToBytes(state.identity!.privateKey), publicKey: hexToBytes(state.identity!.publicKey) },
+                      peerPubForSession,
+                      hexToBytes(msg.senderPublicKey),
+                      null,
+                      senderEphBytes
+                    );
+                    session = res.session;
+                  } catch (e: any) {
+                    console.error('Responder init failed:', e.message);
+                    continue;
                   }
-
-                  // X3DH REQUIRES the X25519 identity key pair — NOT the Ed25519 device key.
-                  // The device key (Ed25519) is only used for authentication/signing.
-                  // Using deviceIdentity (Ed25519) here produces a wrong shared secret
-                  // that will never match the initiator's computation → decryption always fails.
-                  const res = await initSession(
-                    { privateKey: hexToBytes(state.identity!.privateKey), publicKey: hexToBytes(state.identity!.publicKey) },
-                    peerPubForSession,
-                    hexToBytes(msg.senderPublicKey),
-                    null,
-                    reqSenderEph
-                  );
-                  session = res.session;
-                } catch (e: any) {
-                  console.error('Responder init failed:', e.message);
-                  continue;
                 }
               }
 
@@ -581,6 +656,9 @@ export function ChatPage() {
                     expiresAt: targetPayload.expiresAt || new Date(msg.expiresAt).getTime(),
                     ttlMs: targetPayload.ttlMs || msg.ttlSeconds * 1000
                   });
+
+                  // Cache the decrypted plaintext to prevent desyncing when rendering
+                  decryptedCache.current.set(msg.id, plaintext);
                 } catch (error) {
                   // Ignore decryption failures
                 }
@@ -588,19 +666,11 @@ export function ChatPage() {
             }
           }
 
-          if (!plaintext) continue;
-
-          decryptedCache.current.set(msg.id, plaintext);
-          if (decryptedCache.current.size > 500) {
-            const firstKey = decryptedCache.current.keys().next().value;
-            if (firstKey) decryptedCache.current.delete(firstKey);
-          }
-
           decrypted.push({
             id: msg.id,
             senderPublicKey: msg.senderPublicKey,
             receiverPublicKey: msg.receiverPublicKey,
-            plaintext,
+            plaintext: plaintext || '⚠️ Message decryption failed',
             ttlSeconds: msg.ttlSeconds,
             isRead: msg.isRead || false,
             reactions: msg.reactions ? JSON.parse(msg.reactions) : {},
@@ -635,12 +705,11 @@ export function ChatPage() {
     };
 
     decryptMessages().catch(() => { });
-  }, [serverMessages, state.identity, state.selectedFriend, sentMessages]);
+  }, [chatMessages, state.identity, state.selectedFriend, sentMessages]);
 
-  // Ensure device is registered on mount
   useEffect(() => {
     if (state.identity) {
-      ensureDeviceRegistered();
+      ensureDeviceRegistered(hexToBytes(state.identity.privateKey));
     }
   }, [state.identity]);
 
@@ -656,10 +725,7 @@ export function ChatPage() {
     return () => clearInterval(interval);
   }, [state.selectedFriend?.publicKey, state.identity?.publicKey]);
 
-  // Scroll to bottom when messages change
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+
 
   const sendMessageMutation = useMutation({
     retry: 2,
@@ -818,19 +884,11 @@ export function ChatPage() {
 
         const encrypted = await encryptRatchet(session, message);
         encryptedPayloads.push({
+          payloadVersion: 2,
           devicePublicKey: device.devicePublicKey,
           senderDevicePublicKey: deviceIdentity.publicKey,
           ciphertext: encrypted.ciphertext,
           nonce: encrypted.nonce,
-          ephemeralPublicKey: currentEphemeral || '00'.repeat(32),
-          // Random placeholder salt — the Double Ratchet derives its own keys.
-          // This field satisfies saltSchema validation; it is NOT used in decryption.
-          // See docs/ENCRYPTION.md for the two-path architecture.
-          salt: (() => {
-            const payloadSalt = new Uint8Array(32);
-            crypto.getRandomValues(payloadSalt);
-            return Array.from(payloadSalt).map(b => b.toString(16).padStart(2, '0')).join('');
-          })(),
           header: {
             ...encrypted.raw.header,
             // Uint8Arrays are not JSON-serializable — they become {0:1, 1:2, ...} objects.
@@ -1139,8 +1197,6 @@ export function ChatPage() {
         {pinPromptOpen ? (
           <PinUnlockDialog
             onUnlock={handlePinUnlock}
-            error={pinError}
-            loading={false}
           />
         ) : (
           <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
@@ -1183,11 +1239,16 @@ export function ChatPage() {
               onVerifySafetyNumber={() => setVerificationDialogOpen(true)}
               onBack={() => setShowSidebar(true)}
               isMobile={isMobile}
+              onLoadOlder={loadOlderMessages}
+              hasMore={hasMore}
+              olderLoading={olderLoading}
+              isTyping={isFriendTyping}
             />
             {!selectedFriendBlocked && (
               <ComposeBar
                 onSend={(message, ttl) => sendMessageMutation.mutate({ message, ttl })}
                 disabled={sendMessageMutation.isPending}
+                onTyping={handleTyping}
               />
             )}
           </>

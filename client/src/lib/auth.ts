@@ -39,10 +39,11 @@ export async function createAuthHeaders(
     url: string,
     bodyStr: string = ''
 ): Promise<Record<string, string>> {
-    const deviceIdentity = await getDeviceIdentity();
     const userIdentity = await getIdentity();
-
     if (!userIdentity) return {};
+
+    const identityPrivKeyBytes = hexToBytes(userIdentity.privateKey);
+    const deviceIdentity = await getDeviceIdentity(identityPrivKeyBytes);
 
     // Device key is mandatory for all authenticated requests.
     // If no device key exists yet (edge case: first-ever load before ensureDeviceRegistered runs),

@@ -1,6 +1,8 @@
 import { x25519, ed25519 } from '@noble/curves/ed25519.js';
 import { generateMnemonic, mnemonicToSeedSync, validateMnemonic } from '@scure/bip39';
 import { wordlist } from '@scure/bip39/wordlists/english.js';
+import { hexToBytes, bytesToHex } from '@shared/utils/hex';
+export { hexToBytes, bytesToHex };
 
 
 // Generate a random 32-byte private key
@@ -63,25 +65,6 @@ export async function deriveKeyFromPhrase(phrase: string): Promise<Uint8Array> {
 // Validate a recovery phrase
 export function isValidRecoveryPhrase(phrase: string): boolean {
   return validateMnemonic(phrase, wordlist);
-}
-
-// Convert Uint8Array to hex string
-export function bytesToHex(bytes: Uint8Array): string {
-  return Array.from(bytes)
-    .map(b => b.toString(16).padStart(2, '0'))
-    .join('');
-}
-
-// Convert hex string to Uint8Array
-export function hexToBytes(hex: string): Uint8Array {
-  if (hex.length % 2 !== 0) {
-    throw new Error('Invalid hex string');
-  }
-  const bytes = new Uint8Array(hex.length / 2);
-  for (let i = 0; i < hex.length; i += 2) {
-    bytes[i / 2] = parseInt(hex.slice(i, i + 2), 16);
-  }
-  return bytes;
 }
 
 // Perform X25519 key exchange to derive a shared secret

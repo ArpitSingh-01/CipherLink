@@ -1,21 +1,34 @@
 # CipherLink Encryption Architecture
 
-## Two Paths — Never Mix Them
+CipherLink is designed as a zero-identity-trace, forward-secure chat platform. Security is enforced client-side and verified cryptographically on the server.
 
-### Path A — Legacy (crypto.ts `encryptMessage`)
-Used for: device-linking payloads, identity-verification signatures
-Uses: X25519 ECDH → HKDF(sharedSecret, **salt**, info) → AES-256-GCM
-The `salt` field in the payload is HKDF input — required for decryption.
+## 1. Key Derivation & Storage Security
 
-### Path B — Double Ratchet (session.ts `encryptRatchet`)  
-Used for: all chat messages
-Uses: X3DH → Double Ratchet (Signal-compatible)
-The `salt` field in the payload is a **placeholder** — the ratchet
-derives all keys internally. The field exists only to satisfy the server's
-schema validation and MUST NOT be used in decryption logic.
-Random bytes are sent (not zeros) to avoid false predictability signals.
+### Device Identity Key (Ed25519)
+- **Generation:** Generated client-side.
+- **Storage:** Stored locally in IndexedDB.
+- **Encryption at Rest:** To prevent extraction attacks, the private key is encrypted with AES-GCM-256. The encryption key is derived from the user's PIN using PBKDF2-HMAC-SHA256 with **100,000 iterations** and a **unique 16-byte random salt** stored alongside the encrypted key.
+- **Lockout:** Encrypted in-memory decryption ensures keys are cleared immediately when the session ends or if too many incorrect PIN attempts occur (locked out for 30s).
 
-## Rule
-If you are encrypting a chat message: use `encryptRatchet`.
-If you are encrypting a linking payload: use `encryptMessage` (crypto.ts).
-Never call one where the other is expected.
+---
+
+## 2. Server Authentication Hardening
+
+Every mutating endpoint (`POST`, `DELETE`, etc.) requires a cryptographic proof of identity:
+- **X-Signature:** A base64-encoded signature of the request payload (URI path, timestamp, and request body) signed with the user's Ed25519 private key.
+- **X-Public-Key:** The user's Curve25519 public key.
+- **Verification:** The server validates the signature cryptographically before acting. Users do not sign up with passwords or emails; public keys *are* their identities.
+
+---
+
+## 3. Communication Protocols (Never Mixed)
+
+### Path A: Device Linking & Verification
+- **Purpose:** Used for device-to-device transfers (transmitting recovery phrases to new devices) and identity safety number signatures.
+- **Protocol:** X25519 ECDH exchange -> HKDF derivation (using a payload-specific random salt and info string) -> AES-256-GCM.
+- **Requirement:** The salt used in HKDF is passed in the payload and is mandatory for decryption.
+
+### Path B: Chat Messaging (Double Ratchet)
+- **Purpose:** Used for all peer-to-peer chat text.
+- **Protocol:** X3DH key agreement establishes initial root and chain keys, followed by the Signal-compatible **Double Ratchet** protocol.
+- **Optimized Payload:** The placeholder `salt` field has been **completely eliminated** from the schema and payload. All ratcheted keys are derived internally using KDF chains, keeping the payload payload-size optimal with zero redundant bytes.

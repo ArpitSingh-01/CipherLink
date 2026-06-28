@@ -74,10 +74,13 @@ function FriendListItem({
     .slice(0, 2);
 
   return (
-    <button
+    <motion.button
+      whileHover={{ x: 4, backgroundColor: "rgba(255,255,255,0.03)" }}
+      whileTap={{ scale: 0.98 }}
+      transition={{ type: "spring", stiffness: 400, damping: 25 }}
       onClick={onClick}
-      className={`w-full flex items-center gap-3 p-3 rounded-lg transition-colors hover-elevate ${
-        isSelected ? 'bg-accent' : ''
+      className={`w-full flex items-center gap-3 p-3 rounded-lg transition-all ${
+        isSelected ? 'bg-accent border border-white/[0.04]' : 'border border-transparent'
       }`}
       data-testid={`friend-item-${friend.publicKey.slice(0, 8)}`}
     >
@@ -111,7 +114,7 @@ function FriendListItem({
           {formatDistanceToNow(new Date(friend.lastMessageAt), { addSuffix: false })}
         </span>
       )}
-    </button>
+    </motion.button>
   );
 }
 
@@ -277,10 +280,10 @@ function PendingRequestsDialog({
 
       return await response.json() as { success: boolean; friendPublicKey: string; friendName: string | null };
     },
-    onSuccess: async (data) => {
+    onSuccess: async (data, variables) => {
       await saveFriend({
         publicKey: data.friendPublicKey,
-        displayName: data.friendName || `User-${data.friendPublicKey.slice(0, 8).toUpperCase()}`,
+        displayName: variables.friendName || `User-${data.friendPublicKey.slice(0, 8).toUpperCase()}`,
       });
 
       toast({
@@ -556,11 +559,30 @@ export function FriendsSidebar({
           <ScrollArea className="flex-grow flex flex-col">
             <div className="p-2">
               {filteredFriends.length === 0 ? (
-                <div className="flex-1 flex flex-col items-center justify-center py-12 px-4 text-center">
-                  <p className="text-muted-foreground text-sm">
-                    {searchQuery ? 'No friends match search query' : 'No friends yet'}
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                  className="flex-grow flex flex-col items-center justify-center py-16 px-6 text-center"
+                >
+                  <svg viewBox="0 0 200 200" className="w-28 h-28 mb-4 mx-auto opacity-30">
+                    <circle cx="100" cy="100" r="80" className="fill-none stroke-zinc-800 stroke-[1.5]" strokeDasharray="4 4" />
+                    <circle cx="100" cy="100" r="50" className="fill-none stroke-zinc-800 stroke-[1.5]" />
+                    <circle cx="100" cy="100" r="8" className="fill-cyan-500/20 stroke-cyan-400 stroke-2" />
+                    <circle cx="50" cy="100" r="5" className="fill-zinc-700" />
+                    <circle cx="150" cy="100" r="5" className="fill-zinc-700" />
+                    <circle cx="100" cy="30" r="4" className="fill-zinc-800" />
+                    <circle cx="100" cy="170" r="4" className="fill-zinc-800" />
+                  </svg>
+                  <h3 className="font-semibold text-sm text-zinc-300 mb-1">
+                    {searchQuery ? 'No Results' : 'Isolated Instance'}
+                  </h3>
+                  <p className="text-zinc-500 text-[11px] max-w-[200px] leading-relaxed">
+                    {searchQuery 
+                      ? 'No peers match search criteria.' 
+                      : 'Generate or scan a verification code to establish your first ratcheted connection.'}
                   </p>
-                </div>
+                </motion.div>
               ) : (
                 filteredFriends.map((friend) => (
                   <FriendListItem
