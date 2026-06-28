@@ -37,6 +37,16 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { apiRequest } from '@/lib/queryClient';
 import { authenticatedFetch } from '@/lib/auth';
 import { ensureDeviceRegistered } from '@/lib/devices';
+import { useSEO } from '@/hooks/useSEO';
+import { SpotlightCard } from '@/components/ui/SpotlightCard';
+
+const onboardingStepTransition = {
+  initial: { opacity: 0, y: 15 },
+  animate: { opacity: 1, y: 0 },
+  exit: { opacity: 0, y: -15 },
+  transition: { type: 'spring', stiffness: 220, damping: 24 }
+};
+
 
 type Step = 'welcome' | 'generate' | 'phrase' | 'confirm' | 'pin' | 'username' | 'restore' | 'restorePin' | 'link' | 'complete' | 'linked';
 
@@ -49,9 +59,7 @@ interface IdentityData {
 function WelcomeStep({ onGenerate, onRestore, onLink }: { onGenerate: () => void; onRestore: () => void; onLink: () => void }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -20 }}
+      {...onboardingStepTransition}
       className="text-center"
     >
       <div className="w-20 h-20 rounded-2xl bg-cyan-950/20 border border-cyan-900/30 flex items-center justify-center mx-auto mb-6 shadow-[0_0_50px_rgba(6,182,212,0.15)]">
@@ -63,56 +71,65 @@ function WelcomeStep({ onGenerate, onRestore, onLink }: { onGenerate: () => void
       </p>
 
       <div className="grid gap-4 text-left">
-        <motion.button
-          whileHover={{ scale: 1.02, border: "1px solid rgba(34, 211, 238, 0.4)", backgroundColor: "rgba(255,255,255,0.02)" }}
-          whileTap={{ scale: 0.99 }}
-          onClick={onGenerate}
-          className="flex items-center gap-4 p-5 rounded-2xl border border-white/[0.04] bg-zinc-950/30 text-left transition-all group w-full"
-          data-testid="button-create-identity"
+        <SpotlightCard
+          glowColor="rgba(34, 217, 182, 0.12)"
+          className="hover:border-cyan-500/20"
         >
-          <div className="w-10 h-10 rounded-xl bg-cyan-950/20 border border-cyan-900/30 flex items-center justify-center text-cyan-400 group-hover:bg-cyan-500 group-hover:text-black transition-all">
-            <KeyRound className="w-5 h-5" />
-          </div>
-          <div className="flex-1">
-            <span className="font-semibold text-sm text-white block">Mint New Cryptographic Identity</span>
-            <span className="text-[11px] text-zinc-500 block mt-0.5">Generate a random high-entropy seed and client keys.</span>
-          </div>
-          <ArrowRight className="w-4 h-4 text-zinc-600 group-hover:translate-x-1 group-hover:text-white transition-all" />
-        </motion.button>
+          <button
+            onClick={onGenerate}
+            className="flex items-center gap-4 p-5 text-left group w-full bg-transparent border-none cursor-pointer"
+            data-testid="button-create-identity"
+          >
+            <div className="w-10 h-10 rounded-xl bg-cyan-950/20 border border-cyan-900/30 flex items-center justify-center text-cyan-400 group-hover:bg-cyan-500 group-hover:text-black transition-all">
+              <KeyRound className="w-5 h-5" />
+            </div>
+            <div className="flex-1">
+              <span className="font-semibold text-sm text-white block">Mint New Cryptographic Identity</span>
+              <span className="text-[11px] text-zinc-500 block mt-0.5">Generate a random high-entropy seed and client keys.</span>
+            </div>
+            <ArrowRight className="w-4 h-4 text-zinc-600 group-hover:translate-x-1 group-hover:text-white transition-all" />
+          </button>
+        </SpotlightCard>
 
-        <motion.button
-          whileHover={{ scale: 1.02, border: "1px solid rgba(99, 102, 241, 0.4)", backgroundColor: "rgba(255,255,255,0.02)" }}
-          whileTap={{ scale: 0.99 }}
-          onClick={onLink}
-          className="flex items-center gap-4 p-5 rounded-2xl border border-white/[0.04] bg-zinc-950/30 text-left transition-all group w-full"
-          data-testid="button-link-device"
+        <SpotlightCard
+          glowColor="rgba(99, 102, 241, 0.12)"
+          className="hover:border-indigo-500/20"
         >
-          <div className="w-10 h-10 rounded-xl bg-indigo-950/20 border border-indigo-900/30 flex items-center justify-center text-indigo-400 group-hover:bg-indigo-500 group-hover:text-black transition-all">
-            <Link className="w-5 h-5" />
-          </div>
-          <div className="flex-1">
-            <span className="font-semibold text-sm text-white block">Link Secondary Device</span>
-            <span className="text-[11px] text-zinc-500 block mt-0.5">Authorize a secure wireless peer-to-peer session clone.</span>
-          </div>
-          <ArrowRight className="w-4 h-4 text-zinc-600 group-hover:translate-x-1 group-hover:text-white transition-all" />
-        </motion.button>
+          <button
+            onClick={onLink}
+            className="flex items-center gap-4 p-5 text-left group w-full bg-transparent border-none cursor-pointer"
+            data-testid="button-link-device"
+          >
+            <div className="w-10 h-10 rounded-xl bg-indigo-950/20 border border-indigo-900/30 flex items-center justify-center text-indigo-400 group-hover:bg-indigo-500 group-hover:text-black transition-all">
+              <Link className="w-5 h-5" />
+            </div>
+            <div className="flex-1">
+              <span className="font-semibold text-sm text-white block">Link Secondary Device</span>
+              <span className="text-[11px] text-zinc-500 block mt-0.5">Authorize a secure wireless peer-to-peer session clone.</span>
+            </div>
+            <ArrowRight className="w-4 h-4 text-zinc-600 group-hover:translate-x-1 group-hover:text-white transition-all" />
+          </button>
+        </SpotlightCard>
 
-        <motion.button
-          whileHover={{ scale: 1.02, border: "1px solid rgba(255, 255, 255, 0.2)", backgroundColor: "rgba(255,255,255,0.02)" }}
-          whileTap={{ scale: 0.99 }}
-          onClick={onRestore}
-          className="flex items-center gap-4 p-5 rounded-2xl border border-white/[0.04] bg-zinc-950/30 text-left transition-all group w-full"
-          data-testid="button-restore-identity"
+        <SpotlightCard
+          glowColor="rgba(255, 255, 255, 0.08)"
+          className="hover:border-white/20"
         >
-          <div className="w-10 h-10 rounded-xl bg-zinc-900 border border-white/[0.06] flex items-center justify-center text-zinc-400 group-hover:bg-white group-hover:text-black transition-all">
-            <RefreshCw className="w-5 h-5" />
-          </div>
-          <div className="flex-1">
-            <span className="font-semibold text-sm text-white block">Restore Session Instance</span>
-            <span className="text-[11px] text-zinc-500 block mt-0.5">Recover your identity from a 12-word recovery phrase.</span>
-          </div>
-          <ArrowRight className="w-4 h-4 text-zinc-600 group-hover:translate-x-1 group-hover:text-white transition-all" />
-        </motion.button>
+          <button
+            onClick={onRestore}
+            className="flex items-center gap-4 p-5 text-left group w-full bg-transparent border-none cursor-pointer"
+            data-testid="button-restore-identity"
+          >
+            <div className="w-10 h-10 rounded-xl bg-zinc-900 border border-white/[0.06] flex items-center justify-center text-zinc-400 group-hover:bg-white group-hover:text-black transition-all">
+              <RefreshCw className="w-5 h-5" />
+            </div>
+            <div className="flex-1">
+              <span className="font-semibold text-sm text-white block">Restore Session Instance</span>
+              <span className="text-[11px] text-zinc-500 block mt-0.5">Recover your identity from a 12-word recovery phrase.</span>
+            </div>
+            <ArrowRight className="w-4 h-4 text-zinc-600 group-hover:translate-x-1 group-hover:text-white transition-all" />
+          </button>
+        </SpotlightCard>
       </div>
     </motion.div>
   );
@@ -121,9 +138,10 @@ function WelcomeStep({ onGenerate, onRestore, onLink }: { onGenerate: () => void
 function GeneratingStep() {
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.9 }}
+      initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.9 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      transition={{ type: 'spring', stiffness: 220, damping: 24 }}
       className="text-center"
     >
       <div className="w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-6 animate-neon-pulse">
@@ -179,9 +197,7 @@ function RecoveryPhraseStep({
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -20 }}
+      {...onboardingStepTransition}
     >
       <div className="text-center mb-8">
         <div className="w-16 h-16 rounded-2xl bg-destructive/10 flex items-center justify-center mx-auto mb-4">
@@ -326,9 +342,7 @@ function ConfirmPhraseStep({
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -20 }}
+      {...onboardingStepTransition}
     >
       <div className="text-center mb-8">
         <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
@@ -416,9 +430,7 @@ function PinStep({
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -20 }}
+      {...onboardingStepTransition}
     >
       <div className="text-center mb-8">
         <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
@@ -510,9 +522,7 @@ function UsernameStep({
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -20 }}
+      {...onboardingStepTransition}
     >
       <div className="text-center mb-8">
         <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
@@ -608,9 +618,7 @@ function RestoreStep({
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -20 }}
+      {...onboardingStepTransition}
     >
       <div className="text-center mb-8">
         <div className="w-16 h-16 rounded-2xl bg-cyan-950/20 border border-cyan-900/30 flex items-center justify-center mx-auto mb-4">
@@ -680,9 +688,10 @@ function CompleteStep() {
 
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.9 }}
+      initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.9 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      transition={{ type: 'spring', stiffness: 220, damping: 24 }}
       className="text-center"
     >
       <div className="w-20 h-20 rounded-2xl bg-green-500/10 flex items-center justify-center mx-auto mb-6">
@@ -900,6 +909,12 @@ function LinkDeviceStep({ onBack, onComplete }: { onBack: () => void; onComplete
 }
 
 export function Onboarding() {
+  useSEO({
+    title: 'CipherLink — Set Up Cryptographic Identity',
+    description: 'Set up your local device identity. Generate Curve25519 keys or restore previous sessions securely.',
+    keywords: 'cryptographic identity, Curve25519 keys generation, restore seed phrase'
+  });
+
   const [step, setStep] = useState<Step>('welcome');
   const [identity, setIdentity] = useState<IdentityData | null>(null);
   const [userPin, setUserPin] = useState<string>('');

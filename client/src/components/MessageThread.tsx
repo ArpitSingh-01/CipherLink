@@ -317,8 +317,19 @@ export function MessageThread({
         className="flex-1 overflow-y-auto p-4 space-y-3"
       >
         {messagesLoading ? (
-          <div className="flex items-center justify-center h-full">
-            <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          <div className="space-y-4 animate-pulse p-2">
+            <div className="flex justify-start">
+              <div className="w-[55%] h-10 bg-muted/60 rounded-2xl rounded-bl-sm" />
+            </div>
+            <div className="flex justify-end">
+              <div className="w-[40%] h-10 bg-primary/20 rounded-2xl rounded-br-sm" />
+            </div>
+            <div className="flex justify-start">
+              <div className="w-[65%] h-12 bg-muted/60 rounded-2xl rounded-bl-sm" />
+            </div>
+            <div className="flex justify-end">
+              <div className="w-[35%] h-10 bg-primary/20 rounded-2xl rounded-br-sm" />
+            </div>
           </div>
         ) : messages.length === 0 ? (
           <div className="flex items-center justify-center h-full text-center text-muted-foreground">

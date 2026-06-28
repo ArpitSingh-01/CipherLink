@@ -6,6 +6,9 @@ import { useRef, useEffect, useState, useCallback } from 'react';
 import { Shield, Lock, ArrowRight, Eye, Fingerprint, Timer, Server, KeyRound, CheckCircle2, ShieldAlert } from 'lucide-react';
 import { motion, useScroll, useTransform, useMotionValue, useSpring, useInView, useTime, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
+import { useSEO } from '@/hooks/useSEO';
+import { SpotlightCard } from '@/components/ui/SpotlightCard';
+
 
 function InteractiveHandshake() {
   const [hoveredNode, setHoveredNode] = useState<'alice' | 'relay' | 'bob' | null>(null);
@@ -219,32 +222,52 @@ function DoubleRatchetSandbox() {
           {/* Interactive Chat Mockup */}
           <div className="space-y-3 bg-[#080808] border border-white/[0.02] p-4 rounded-xl mb-6">
             {step > 0 && (
-              <div className="flex justify-end">
+              <motion.div
+                initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{ type: "spring", stiffness: 260, damping: 20 }}
+                className="flex justify-end"
+              >
                 <div className="max-w-[80%] px-3 py-2 rounded-xl bg-zinc-900 text-xs text-zinc-300 font-mono">
                   {ratchetSteps[0].msg}
                 </div>
-              </div>
+              </motion.div>
             )}
             {step > 1 && (
-              <div className="flex justify-start">
+              <motion.div
+                initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{ type: "spring", stiffness: 260, damping: 20 }}
+                className="flex justify-start"
+              >
                 <div className="max-w-[80%] px-3 py-2 rounded-xl border border-zinc-800 text-xs text-zinc-300 font-mono">
                   {ratchetSteps[1].msg}
                 </div>
-              </div>
+              </motion.div>
             )}
             {step > 2 && (
-              <div className="flex justify-start">
+              <motion.div
+                initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{ type: "spring", stiffness: 260, damping: 20 }}
+                className="flex justify-start"
+              >
                 <div className="max-w-[80%] px-3 py-2 rounded-xl border border-zinc-800 text-xs text-zinc-300 font-mono">
                   {ratchetSteps[2].msg}
                 </div>
-              </div>
+              </motion.div>
             )}
             {step > 3 && (
-              <div className="flex justify-end">
+              <motion.div
+                initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{ type: "spring", stiffness: 260, damping: 20 }}
+                className="flex justify-end"
+              >
                 <div className="max-w-[80%] px-3 py-2 rounded-xl bg-zinc-900 text-xs text-zinc-300 font-mono">
                   {ratchetSteps[3].msg}
                 </div>
-              </div>
+              </motion.div>
             )}
             {step === 0 && (
               <div className="text-center py-6 text-zinc-600 text-xs font-mono">
@@ -426,8 +449,30 @@ function AtmosphericBackground() {
       <div className="fixed inset-0 bg-[#050505] pointer-events-none -z-50" />
       
       {/* Subtle violet/blue undertones */}
-      <div className="fixed top-[10%] left-[20%] w-[800px] h-[800px] rounded-full bg-indigo-900/[0.015] blur-[150px] pointer-events-none -z-40" />
-      <div className="fixed bottom-[10%] right-[10%] w-[600px] h-[600px] rounded-full bg-blue-900/[0.012] blur-[120px] pointer-events-none -z-40" />
+      <motion.div
+        animate={{
+          x: [0, 40, -20, 0],
+          y: [0, -30, 20, 0],
+        }}
+        transition={{
+          duration: 30,
+          repeat: Infinity,
+          ease: "easeInOut"
+        }}
+        className="fixed top-[10%] left-[20%] w-[800px] h-[800px] rounded-full bg-indigo-900/[0.015] blur-[150px] pointer-events-none -z-40"
+      />
+      <motion.div
+        animate={{
+          x: [0, -30, 30, 0],
+          y: [0, 40, -20, 0],
+        }}
+        transition={{
+          duration: 25,
+          repeat: Infinity,
+          ease: "easeInOut"
+        }}
+        className="fixed bottom-[10%] right-[10%] w-[600px] h-[600px] rounded-full bg-blue-900/[0.012] blur-[120px] pointer-events-none -z-40"
+      />
       
       {/* Noise Texture */}
       <div 
@@ -561,19 +606,41 @@ function Hero() {
           </motion.div>
 
           <motion.h1
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ 
-              type: 'spring',
-              stiffness: 90,
-              damping: 14,
-              delay: 0.3
+            variants={{
+              hidden: {},
+              visible: {
+                transition: {
+                  staggerChildren: 0.15,
+                  delayChildren: 0.3
+                }
+              }
             }}
+            initial="hidden"
+            animate="visible"
             className="text-[clamp(3.2rem,6vw,5.5rem)] font-bold leading-[1.05] tracking-[-0.04em] text-white mb-8"
           >
-            Encryption without
-            <br />
-            <span className="text-cyan-400 font-serif italic text-[0.95em]">compromise.</span>
+            <span className="block overflow-hidden py-1">
+              <motion.span
+                variants={{
+                  hidden: { opacity: 0, y: "100%" },
+                  visible: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 90, damping: 14 } }
+                }}
+                className="block"
+              >
+                Encryption without
+              </motion.span>
+            </span>
+            <span className="block overflow-hidden py-1">
+              <motion.span
+                variants={{
+                  hidden: { opacity: 0, y: "100%" },
+                  visible: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 90, damping: 14 } }
+                }}
+                className="block text-cyan-400 font-serif italic text-[0.95em]"
+              >
+                compromise.
+              </motion.span>
+            </span>
           </motion.h1>
 
           <motion.p
@@ -779,15 +846,11 @@ function ProtocolSection() {
 
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {protocols.map((protocol, i) => (
-            <Reveal key={protocol.num} delay={i * 0.1} direction="up">
-              <motion.div 
-                whileHover={{ y: -8, scale: 1.02 }}
-                transition={{ type: 'spring', stiffness: 200, damping: 15 }}
-                className="group relative p-6 rounded-2xl bg-glass border border-glass hover:border-cyan-500/30 hover:shadow-xl transition-all duration-300 overflow-hidden h-full flex flex-col justify-between"
+            <Reveal key={protocol.num} delay={i * 0.1} direction="up" className="h-full">
+              <SpotlightCard
+                glowColor={i % 2 === 0 ? "rgba(34, 217, 182, 0.12)" : "rgba(99, 102, 241, 0.12)"}
+                className="h-full p-6 hover:border-cyan-500/20 hover:shadow-xl transition-all duration-300 flex flex-col justify-between cursor-default"
               >
-                {/* Subtle gradient hover glow */}
-                <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 to-indigo-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
-
                 <div>
                   <div className="flex items-center justify-between mb-6">
                     <span className="text-zinc-600 font-mono text-xs">{protocol.num} //</span>
@@ -806,7 +869,7 @@ function ProtocolSection() {
                   <h3 className="text-[16px] font-medium text-zinc-100 mb-3 group-hover:text-white transition-colors">{protocol.title}</h3>
                   <p className="text-[13px] leading-relaxed text-zinc-500 group-hover:text-zinc-400 transition-colors">{protocol.desc}</p>
                 </div>
-              </motion.div>
+              </SpotlightCard>
             </Reveal>
           ))}
         </div>
@@ -955,6 +1018,12 @@ function Footer() {
 /* ─── Page ───────────────────────────────────────────────────────────── */
 
 export function LandingPage() {
+  useSEO({
+    title: 'CipherLink — End-to-End Encrypted Private Chat Client',
+    description: 'A pure technical messaging client. Forward-secure, identity-agnostic, and completely ephemeral. Sandbox client keys local to your browser.',
+    keywords: 'encrypted messaging, Signal protocol, Double Ratchet, X3DH, zero knowledge chat'
+  });
+
   return (
     <div className="min-h-screen bg-[#050505] text-zinc-300 selection:bg-cyan-900/30 selection:text-cyan-100 overflow-x-hidden font-sans">
       <AtmosphericBackground />

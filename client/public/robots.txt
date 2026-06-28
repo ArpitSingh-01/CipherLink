@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Allow: /onboarding
+Disallow: /chat
+Sitemap: https://cipherlink.app/sitemap.xml

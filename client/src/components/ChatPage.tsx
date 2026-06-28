@@ -98,6 +98,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { formatDistanceToNow, differenceInSeconds, format } from 'date-fns';
 import { DevicesDialog } from './DevicesDialog';
 import { IdentityDialog } from './IdentityDialog';
+import { useSEO } from '@/hooks/useSEO';
+
 import { FriendsSidebar } from './FriendsSidebar';
 import { ComposeBar } from './ComposeBar';
 import { MessageThread } from './MessageThread';
@@ -212,6 +214,12 @@ function VerificationDialog({
 
 
 export function ChatPage() {
+  useSEO({
+    title: 'CipherLink — Decrypted Chat Client',
+    description: 'End-to-end encrypted chat dashboard. Sandboxed client-side key agreements active.',
+    keywords: 'encrypted chat, privacy chat room, double ratchet messaging'
+  });
+
   const [, setLocation] = useLocation();
   const [state, setState] = useState<ChatState>({
     identity: null,
@@ -1193,13 +1201,70 @@ export function ChatPage() {
 
   if (!state.identity) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen w-screen flex bg-background overflow-hidden selection:bg-cyan-900/30">
         {pinPromptOpen ? (
-          <PinUnlockDialog
-            onUnlock={handlePinUnlock}
-          />
+          <div className="flex-1 flex items-center justify-center">
+            <PinUnlockDialog
+              onUnlock={handlePinUnlock}
+            />
+          </div>
         ) : (
-          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          <div className="h-screen w-screen flex bg-background animate-pulse overflow-hidden">
+            {/* Mock Sidebar Skeleton */}
+            <div className="w-80 border-r border-border p-4 space-y-6 hidden md:block bg-zinc-950/20">
+              <div className="flex items-center justify-between pb-4 border-b border-white/[0.04]">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-zinc-900/60" />
+                  <div className="space-y-2">
+                    <div className="h-3 w-24 bg-zinc-900/60 rounded" />
+                    <div className="h-2 w-16 bg-zinc-900/40 rounded" />
+                  </div>
+                </div>
+                <div className="w-8 h-8 rounded-lg bg-zinc-900/60" />
+              </div>
+              <div className="h-9 w-full bg-zinc-900/40 rounded-lg" />
+              <div className="space-y-4 pt-2">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div key={i} className="flex items-center gap-3 p-2">
+                    <div className="w-10 h-10 rounded-full bg-zinc-900/60" />
+                    <div className="flex-1 space-y-2">
+                      <div className="h-3 w-28 bg-zinc-900/60 rounded" />
+                      <div className="h-2.5 w-16 bg-zinc-900/40 rounded" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            {/* Mock Chat Pane Skeleton */}
+            <div className="flex-1 flex flex-col bg-background/50">
+              <div className="h-16 border-b border-border p-4 flex items-center justify-between bg-zinc-950/10">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-zinc-900/60" />
+                  <div className="space-y-2">
+                    <div className="h-3 w-24 bg-zinc-900/60 rounded" />
+                    <div className="h-2 w-16 bg-zinc-900/40 rounded" />
+                  </div>
+                </div>
+              </div>
+              <div className="flex-1 p-6 space-y-5 overflow-hidden">
+                <div className="flex justify-start">
+                  <div className="w-[45%] h-12 bg-zinc-900/40 rounded-2xl rounded-bl-sm" />
+                </div>
+                <div className="flex justify-end">
+                  <div className="w-[30%] h-10 bg-primary/10 rounded-2xl rounded-br-sm" />
+                </div>
+                <div className="flex justify-start">
+                  <div className="w-[50%] h-10 bg-zinc-900/40 rounded-2xl rounded-bl-sm" />
+                </div>
+                <div className="flex justify-end">
+                  <div className="w-[40%] h-12 bg-primary/10 rounded-2xl rounded-br-sm" />
+                </div>
+              </div>
+              <div className="p-4 border-t border-border">
+                <div className="h-12 w-full bg-zinc-900/40 rounded-xl" />
+              </div>
+            </div>
+          </div>
         )}
       </div>
     );
