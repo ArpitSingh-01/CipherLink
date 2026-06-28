@@ -103,7 +103,7 @@ export function PinUnlockDialog({ onUnlock }: PinUnlockDialogProps) {
           className="rounded-2xl border border-white/[0.04] bg-[#0a0a0a] p-6 shadow-2xl relative overflow-hidden"
         >
           {/* Top glowing strip */}
-          <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-cyan-500 to-indigo-500" />
+          <div className="absolute top-0 inset-x-0 h-[1.5px] bg-cyan-500/30" />
           
           <div className="text-center mb-6">
             <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 transition-colors duration-300 ${lockoutTime ? 'bg-destructive/10 text-destructive' : 'bg-primary/10 text-primary'}`}>

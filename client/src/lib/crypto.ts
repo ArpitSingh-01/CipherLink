@@ -2,7 +2,7 @@ import { x25519, ed25519 } from '@noble/curves/ed25519.js';
 import { generateMnemonic, mnemonicToSeedSync, validateMnemonic } from '@scure/bip39';
 import { wordlist } from '@scure/bip39/wordlists/english.js';
 import { hexToBytes, bytesToHex } from '@shared/utils/hex';
-export { hexToBytes, bytesToHex };
+export { hexToBytes, bytesToHex, wordlist };
 
 
 // Generate a random 32-byte private key

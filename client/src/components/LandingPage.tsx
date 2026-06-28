@@ -3,8 +3,289 @@
  */
 import { Link } from 'wouter';
 import { useRef, useEffect, useState, useCallback } from 'react';
-import { Shield, Lock, ArrowRight, Eye, Fingerprint, Timer, Server, KeyRound, CheckCircle2 } from 'lucide-react';
-import { motion, useScroll, useTransform, useMotionValue, useSpring, useInView, useTime } from 'framer-motion';
+import { Shield, Lock, ArrowRight, Eye, Fingerprint, Timer, Server, KeyRound, CheckCircle2, ShieldAlert } from 'lucide-react';
+import { motion, useScroll, useTransform, useMotionValue, useSpring, useInView, useTime, AnimatePresence } from 'framer-motion';
+import { Button } from '@/components/ui/button';
+
+function InteractiveHandshake() {
+  const [hoveredNode, setHoveredNode] = useState<'alice' | 'relay' | 'bob' | null>(null);
+
+  return (
+    <div className="relative w-full aspect-square max-w-[500px] mx-auto bg-zinc-950/30 border border-white/[0.03] rounded-3xl p-6 flex flex-col justify-between overflow-hidden shadow-2xl backdrop-blur-md">
+      {/* Top title */}
+      <div className="flex items-center justify-between text-[11px] font-mono text-zinc-500 border-b border-white/[0.03] pb-3">
+        <span>X3DH Handshake Visualizer</span>
+        <span className="text-cyan-400">Interactive</span>
+      </div>
+
+      {/* Diagram Canvas */}
+      <div className="relative flex-1 flex items-center justify-between px-4">
+        {/* Alice Node */}
+        <motion.div
+          onMouseEnter={() => setHoveredNode('alice')}
+          onMouseLeave={() => setHoveredNode(null)}
+          whileHover={{ scale: 1.05 }}
+          className={`cursor-pointer z-10 w-16 h-16 rounded-2xl flex flex-col items-center justify-center border transition-all duration-300 ${
+            hoveredNode === 'alice' ? 'bg-cyan-950/20 border-cyan-500 text-cyan-400' : 'bg-zinc-900 border-white/[0.04] text-zinc-400'
+          }`}
+        >
+          <KeyRound className="w-6 h-6 mb-1" />
+          <span className="text-[9px] font-mono">Alice</span>
+        </motion.div>
+
+        {/* Path Lines */}
+        <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-[2px] bg-zinc-900 flex justify-between pointer-events-none px-20">
+          <motion.div
+            animate={hoveredNode === 'alice' ? { background: ['rgba(34,217,182,0.1)', 'rgba(34,217,182,0.8)', 'rgba(34,217,182,0.1)'] } : {}}
+            transition={{ repeat: Infinity, duration: 1.5 }}
+            className="w-1/2 h-full bg-zinc-800"
+          />
+          <motion.div
+            animate={hoveredNode === 'bob' ? { background: ['rgba(99,102,241,0.1)', 'rgba(99,102,241,0.8)', 'rgba(99,102,241,0.1)'] } : {}}
+            transition={{ repeat: Infinity, duration: 1.5 }}
+            className="w-1/2 h-full bg-zinc-800"
+          />
+        </div>
+
+        {/* Relay Server Node */}
+        <motion.div
+          onMouseEnter={() => setHoveredNode('relay')}
+          onMouseLeave={() => setHoveredNode(null)}
+          whileHover={{ scale: 1.05 }}
+          className={`cursor-pointer z-10 w-16 h-16 rounded-2xl flex flex-col items-center justify-center border transition-all duration-300 ${
+            hoveredNode === 'relay' ? 'bg-amber-950/20 border-amber-500 text-amber-400' : 'bg-zinc-900 border-white/[0.04] text-zinc-400'
+          }`}
+        >
+          <Server className="w-6 h-6 mb-1" />
+          <span className="text-[9px] font-mono">Relay</span>
+        </motion.div>
+
+        {/* Bob Node */}
+        <motion.div
+          onMouseEnter={() => setHoveredNode('bob')}
+          onMouseLeave={() => setHoveredNode(null)}
+          whileHover={{ scale: 1.05 }}
+          className={`cursor-pointer z-10 w-16 h-16 rounded-2xl flex flex-col items-center justify-center border transition-all duration-300 ${
+            hoveredNode === 'bob' ? 'bg-indigo-950/20 border-indigo-500 text-indigo-400' : 'bg-zinc-900 border-white/[0.04] text-zinc-400'
+          }`}
+        >
+          <KeyRound className="w-6 h-6 mb-1" />
+          <span className="text-[9px] font-mono">Bob</span>
+        </motion.div>
+      </div>
+
+      {/* Floating Info Overlay */}
+      <div className="h-32 border-t border-white/[0.03] pt-3 text-xs">
+        <AnimatePresence mode="wait">
+          {hoveredNode === 'alice' && (
+            <motion.div
+              key="alice"
+              initial={{ opacity: 0, y: 5 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -5 }}
+              className="space-y-1.5 font-mono text-[11px] text-zinc-400"
+            >
+              <div className="text-cyan-400 font-semibold">Alice (Initiator) Key Material:</div>
+              <div>• Identity Key (IKa): <span className="text-zinc-300">0x2a98f12b...</span></div>
+              <div>• Ephemeral Key (EKa): <span className="text-zinc-300">0x81cd3f21...</span></div>
+              <div>• DH Calculation: <span className="text-zinc-500">SS = DH(IKa, SPKb) || DH(EKa, IKb) || DH(EKa, SPKb)</span></div>
+            </motion.div>
+          )}
+
+          {hoveredNode === 'bob' && (
+            <motion.div
+              key="bob"
+              initial={{ opacity: 0, y: 5 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -5 }}
+              className="space-y-1.5 font-mono text-[11px] text-zinc-400"
+            >
+              <div className="text-indigo-400 font-semibold">Bob (Receiver) Prekey Bundle:</div>
+              <div>• Identity Key (IKb): <span className="text-zinc-300">0x74fa9012...</span></div>
+              <div>• Signed Prekey (SPKb): <span className="text-zinc-300">0x93fc129b...</span></div>
+              <div>• One-Time Prekey (OPKb): <span className="text-zinc-300">0xba11de54...</span></div>
+            </motion.div>
+          )}
+
+          {hoveredNode === 'relay' && (
+            <motion.div
+              key="relay"
+              initial={{ opacity: 0, y: 5 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -5 }}
+              className="space-y-1.5 font-mono text-[11px] text-zinc-400"
+            >
+              <div className="text-amber-400 font-semibold">Zero-Knowledge Relay Server:</div>
+              <div>• Stores Bob's public prekey bundles in memory.</div>
+              <div>• Passes raw encrypted payload blobs between clients.</div>
+              <div>• Holds **no private keys** and terminates **no cryptographic material**.</div>
+            </motion.div>
+          )}
+
+          {!hoveredNode && (
+            <motion.div
+              key="default"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="flex items-center justify-center h-full text-zinc-500 text-center font-mono text-[11px]"
+            >
+              Hover over a cryptographic node to audit active key structures and handshake metrics.
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </div>
+  );
+}
+
+function DoubleRatchetSandbox() {
+  const [step, setStep] = useState(0);
+  const [logs, setLogs] = useState<string[]>([
+    '[INIT] Performing X3DH Handshake...',
+    '[INIT] Shared Secret SS derived successfully.',
+    '[INIT] Root Key (RK) seeded: 0x9fa8b122...',
+    '[INIT] Double Ratchet state initialized.'
+  ]);
+
+  const ratchetSteps = [
+    {
+      log: '[DH STEP 1] Alice generates new DH KeyPair (DH_a1). Derives Sending Chain Key.',
+      rk: '0x9fa8b122... -> 0x82ca33de...',
+      ck: '0x44fa12bd...',
+      mk: '0x1bc89a74...',
+      msg: 'Alice: Is this message forward-secure?'
+    },
+    {
+      log: '[DH STEP 2] Bob receives DH_a1. Derives Receiving Chain Key. Matches Alice\'s key generation.',
+      rk: '0x82ca33de... (matched)',
+      ck: '0x77bc19fa...',
+      mk: '0xa2f10d44...',
+      msg: 'Bob: Yes. A new DH-ratchet step just completed.'
+    },
+    {
+      log: '[DH STEP 3] Bob generates new DH KeyPair (DH_b1). Derives Sending Chain Key.',
+      rk: '0x82ca33de... -> 0x0ef411cb...',
+      ck: '0xbb32de88...',
+      mk: '0x94cb61ab...',
+      msg: 'Bob: Previous chain keys are already purged from memory.'
+    },
+    {
+      log: '[DH STEP 4] Alice receives DH_b1. Derives Receiving Chain Key. Wipes older root keys.',
+      rk: '0x0ef411cb... (matched)',
+      ck: '0x61dc92aa...',
+      mk: '0xca7732d8...',
+      msg: 'Alice: Ephemeral message state synchronised.'
+    }
+  ];
+
+  const handleNextStep = () => {
+    if (step >= ratchetSteps.length) {
+      setStep(0);
+      setLogs([
+        '[INIT] Performing X3DH Handshake...',
+        '[INIT] Shared Secret SS derived successfully.',
+        '[INIT] Root Key (RK) seeded: 0x9fa8b122...',
+        '[INIT] Double Ratchet state initialized.'
+      ]);
+      return;
+    }
+
+    const current = ratchetSteps[step];
+    setLogs((prev) => [
+      ...prev,
+      current.log,
+      `  Root Key: ${current.rk}`,
+      `  Chain Key: ${current.ck}`,
+      `  Message Key: ${current.mk}`,
+      `  Ciphertext output generated.`
+    ]);
+    setStep(step + 1);
+  };
+
+  return (
+    <div className="grid lg:grid-cols-12 gap-8 items-stretch mt-16 max-w-6xl mx-auto text-left">
+      {/* Visual State & Controls */}
+      <div className="lg:col-span-7 p-6 rounded-2xl bg-zinc-950/40 border border-white/[0.03] flex flex-col justify-between shadow-2xl backdrop-blur-md">
+        <div>
+          <div className="flex items-center gap-2 mb-4">
+            <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
+            <span className="text-xs uppercase font-mono tracking-widest text-zinc-400">Interactive Double Ratchet Sandbox</span>
+          </div>
+          <h3 className="text-xl font-bold text-white mb-2">Simulate Key Rotation</h3>
+          <p className="text-xs text-zinc-500 leading-relaxed mb-6">
+            In standard platforms, if an identity key is compromised, history can be retroactively decrypted. In CipherLink, every single message cycles the cryptographic state using Diffie-Hellman keys, preventing retroactive decryption.
+          </p>
+
+          {/* Interactive Chat Mockup */}
+          <div className="space-y-3 bg-[#080808] border border-white/[0.02] p-4 rounded-xl mb-6">
+            {step > 0 && (
+              <div className="flex justify-end">
+                <div className="max-w-[80%] px-3 py-2 rounded-xl bg-zinc-900 text-xs text-zinc-300 font-mono">
+                  {ratchetSteps[0].msg}
+                </div>
+              </div>
+            )}
+            {step > 1 && (
+              <div className="flex justify-start">
+                <div className="max-w-[80%] px-3 py-2 rounded-xl border border-zinc-800 text-xs text-zinc-300 font-mono">
+                  {ratchetSteps[1].msg}
+                </div>
+              </div>
+            )}
+            {step > 2 && (
+              <div className="flex justify-start">
+                <div className="max-w-[80%] px-3 py-2 rounded-xl border border-zinc-800 text-xs text-zinc-300 font-mono">
+                  {ratchetSteps[2].msg}
+                </div>
+              </div>
+            )}
+            {step > 3 && (
+              <div className="flex justify-end">
+                <div className="max-w-[80%] px-3 py-2 rounded-xl bg-zinc-900 text-xs text-zinc-300 font-mono">
+                  {ratchetSteps[3].msg}
+                </div>
+              </div>
+            )}
+            {step === 0 && (
+              <div className="text-center py-6 text-zinc-600 text-xs font-mono">
+                Click "Ratchet Next Step" to transmit messages and cycle keys.
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-4">
+          <Button
+            onClick={handleNextStep}
+            className="flex-1 font-mono text-xs glow-primary"
+            data-testid="button-ratchet-step"
+          >
+            {step >= ratchetSteps.length ? 'Reset Sandbox' : 'Ratchet Next Step (DH-Cycle) →'}
+          </Button>
+        </div>
+      </div>
+
+      {/* Simulated Console */}
+      <div className="lg:col-span-5 rounded-2xl bg-black border border-white/[0.04] p-4 flex flex-col justify-between shadow-2xl h-[350px]">
+        <div className="flex items-center justify-between border-b border-white/[0.04] pb-2 mb-3">
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-red-500/80" />
+            <span className="w-2.5 h-2.5 rounded-full bg-yellow-500/80" />
+            <span className="w-2.5 h-2.5 rounded-full bg-green-500/80" />
+          </div>
+          <span className="text-[10px] font-mono text-zinc-600">ratchet_audit.log</span>
+        </div>
+        <div className="flex-1 overflow-y-auto font-mono text-[10px] text-emerald-500/90 space-y-1.5 scrollbar-thin">
+          {logs.map((log, index) => (
+            <div key={index} className="leading-relaxed whitespace-pre-wrap">
+              {log}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function StaggeredDotGrid() {
   const time = useTime();
@@ -292,7 +573,7 @@ function Hero() {
           >
             Encryption without
             <br />
-            <span className="bg-gradient-to-r from-cyan-400 to-indigo-400 bg-clip-text text-transparent font-serif italic text-[0.95em]">compromise.</span>
+            <span className="text-cyan-400 font-serif italic text-[0.95em]">compromise.</span>
           </motion.h1>
 
           <motion.p
@@ -329,26 +610,12 @@ function Hero() {
         {/* Abstract Hero Visual (Right Side) */}
         <div className="hidden lg:block lg:col-span-5 relative h-full min-h-[500px]">
           <motion.div 
-            initial={{ opacity: 0, scale: 0.9, filter: 'blur(20px)' }}
-            animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
-            transition={{ delay: 0.4, duration: 1.2, ease: "easeOut" }}
-            className="absolute inset-0 flex items-center justify-center -mr-20"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.4, duration: 0.8 }}
+            className="absolute inset-0 flex items-center justify-center -mr-12"
           >
-             <div className="relative w-full aspect-square max-w-[500px]">
-               {/* Orbital rings */}
-               <div className="absolute inset-0 rounded-full border border-white/[0.03] animate-[spin_60s_linear_infinite]" />
-               <div className="absolute inset-[15%] rounded-full border border-indigo-500/[0.05] animate-[spin_40s_linear_infinite_reverse]" />
-               <div className="absolute inset-[30%] rounded-full border border-cyan-500/[0.08]" />
-               
-               {/* Core node */}
-               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 rounded-full bg-gradient-to-br from-zinc-800 to-zinc-950 border border-white/[0.05] flex items-center justify-center shadow-[0_0_80px_rgba(0,0,0,0.8)]">
-                  <Lock className="w-8 h-8 text-cyan-400" />
-               </div>
-               
-               {/* Satellites */}
-               <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-cyan-500/20 backdrop-blur-sm border border-cyan-500/50" />
-               <div className="absolute bottom-1/4 right-[5%] w-3 h-3 rounded-full bg-indigo-500/20 backdrop-blur-sm border border-indigo-500/40" />
-             </div>
+            <InteractiveHandshake />
           </motion.div>
         </div>
       </motion.div>
@@ -543,6 +810,7 @@ function ProtocolSection() {
             </Reveal>
           ))}
         </div>
+        <DoubleRatchetSandbox />
       </div>
     </section>
   );

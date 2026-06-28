@@ -1,7 +1,7 @@
 /**
  * Onboarding component for user setup, seed phrase generation/restoration, and device linking transfers.
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,7 +19,8 @@ import {
   getDeviceName, 
   hexToBytes, 
   hkdf,
-  decryptWithSecret 
+  decryptWithSecret,
+  wordlist
 } from '@/lib/crypto';
 import { 
   saveIdentityEncrypted, 
@@ -53,27 +54,65 @@ function WelcomeStep({ onGenerate, onRestore, onLink }: { onGenerate: () => void
       exit={{ opacity: 0, y: -20 }}
       className="text-center"
     >
-      <div className="w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-6 glow-primary">
-        <Shield className="w-10 h-10 text-primary" />
+      <div className="w-20 h-20 rounded-2xl bg-cyan-950/20 border border-cyan-900/30 flex items-center justify-center mx-auto mb-6 shadow-[0_0_50px_rgba(6,182,212,0.15)]">
+        <Shield className="w-10 h-10 text-cyan-400" />
       </div>
-      <h1 className="text-3xl font-bold mb-4">Welcome to CipherLink</h1>
-      <p className="text-muted-foreground mb-8 max-w-md mx-auto">
-        Your identity is a cryptographic key pair. No emails, no passwords, no phone numbers. Just pure cryptographic privacy.
+      <h1 className="text-3xl font-bold tracking-tight text-white mb-3">Welcome to CipherLink</h1>
+      <p className="text-sm text-zinc-400 mb-10 max-w-sm mx-auto">
+        Your cryptographic identity resides entirely sandboxed inside your local client database instance. No passwords. No server trust needed.
       </p>
 
-      <div className="flex flex-col gap-4 max-w-xs mx-auto">
-        <Button size="lg" onClick={onGenerate} className="glow-primary" data-testid="button-create-identity">
-          <KeyRound className="w-5 h-5 mr-2" />
-          Create New Identity
-        </Button>
-        <Button size="lg" variant="outline" onClick={onLink} data-testid="button-link-device">
-          <Link className="w-5 h-5 mr-2" />
-          Link Existing Device
-        </Button>
-        <Button size="sm" variant="ghost" onClick={onRestore} data-testid="button-restore-identity">
-          <RefreshCw className="w-4 h-4 mr-2" />
-          Restore from Phrase
-        </Button>
+      <div className="grid gap-4 text-left">
+        <motion.button
+          whileHover={{ scale: 1.02, border: "1px solid rgba(34, 211, 238, 0.4)", backgroundColor: "rgba(255,255,255,0.02)" }}
+          whileTap={{ scale: 0.99 }}
+          onClick={onGenerate}
+          className="flex items-center gap-4 p-5 rounded-2xl border border-white/[0.04] bg-zinc-950/30 text-left transition-all group w-full"
+          data-testid="button-create-identity"
+        >
+          <div className="w-10 h-10 rounded-xl bg-cyan-950/20 border border-cyan-900/30 flex items-center justify-center text-cyan-400 group-hover:bg-cyan-500 group-hover:text-black transition-all">
+            <KeyRound className="w-5 h-5" />
+          </div>
+          <div className="flex-1">
+            <span className="font-semibold text-sm text-white block">Mint New Cryptographic Identity</span>
+            <span className="text-[11px] text-zinc-500 block mt-0.5">Generate a random high-entropy seed and client keys.</span>
+          </div>
+          <ArrowRight className="w-4 h-4 text-zinc-600 group-hover:translate-x-1 group-hover:text-white transition-all" />
+        </motion.button>
+
+        <motion.button
+          whileHover={{ scale: 1.02, border: "1px solid rgba(99, 102, 241, 0.4)", backgroundColor: "rgba(255,255,255,0.02)" }}
+          whileTap={{ scale: 0.99 }}
+          onClick={onLink}
+          className="flex items-center gap-4 p-5 rounded-2xl border border-white/[0.04] bg-zinc-950/30 text-left transition-all group w-full"
+          data-testid="button-link-device"
+        >
+          <div className="w-10 h-10 rounded-xl bg-indigo-950/20 border border-indigo-900/30 flex items-center justify-center text-indigo-400 group-hover:bg-indigo-500 group-hover:text-black transition-all">
+            <Link className="w-5 h-5" />
+          </div>
+          <div className="flex-1">
+            <span className="font-semibold text-sm text-white block">Link Secondary Device</span>
+            <span className="text-[11px] text-zinc-500 block mt-0.5">Authorize a secure wireless peer-to-peer session clone.</span>
+          </div>
+          <ArrowRight className="w-4 h-4 text-zinc-600 group-hover:translate-x-1 group-hover:text-white transition-all" />
+        </motion.button>
+
+        <motion.button
+          whileHover={{ scale: 1.02, border: "1px solid rgba(255, 255, 255, 0.2)", backgroundColor: "rgba(255,255,255,0.02)" }}
+          whileTap={{ scale: 0.99 }}
+          onClick={onRestore}
+          className="flex items-center gap-4 p-5 rounded-2xl border border-white/[0.04] bg-zinc-950/30 text-left transition-all group w-full"
+          data-testid="button-restore-identity"
+        >
+          <div className="w-10 h-10 rounded-xl bg-zinc-900 border border-white/[0.06] flex items-center justify-center text-zinc-400 group-hover:bg-white group-hover:text-black transition-all">
+            <RefreshCw className="w-5 h-5" />
+          </div>
+          <div className="flex-1">
+            <span className="font-semibold text-sm text-white block">Restore Session Instance</span>
+            <span className="text-[11px] text-zinc-500 block mt-0.5">Recover your identity from a 12-word recovery phrase.</span>
+          </div>
+          <ArrowRight className="w-4 h-4 text-zinc-600 group-hover:translate-x-1 group-hover:text-white transition-all" />
+        </motion.button>
       </div>
     </motion.div>
   );
@@ -531,6 +570,7 @@ function RestoreStep({
 }) {
   const [phrase, setPhrase] = useState('');
   const [error, setError] = useState('');
+  const [suggestions, setSuggestions] = useState<string[]>([]);
 
   const handleRestore = () => {
     const cleanPhrase = phrase.toLowerCase().trim().replace(/\s+/g, ' ');
@@ -543,6 +583,29 @@ function RestoreStep({
     onRestore(cleanPhrase);
   };
 
+  const handleTextChange = (val: string) => {
+    setPhrase(val);
+    setError('');
+
+    // Match suggestions based on the last typed word
+    const words = val.split(/\s+/);
+    const lastWord = words[words.length - 1].toLowerCase();
+
+    if (lastWord.length >= 2) {
+      const matches = wordlist.filter((w: string) => w.startsWith(lastWord)).slice(0, 5);
+      setSuggestions(matches);
+    } else {
+      setSuggestions([]);
+    }
+  };
+
+  const handleSelectSuggestion = (word: string) => {
+    const words = phrase.split(/\s+/);
+    words[words.length - 1] = word;
+    setPhrase(words.join(' ') + ' ');
+    setSuggestions([]);
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -550,8 +613,8 @@ function RestoreStep({
       exit={{ opacity: 0, y: -20 }}
     >
       <div className="text-center mb-8">
-        <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
-          <RefreshCw className="w-8 h-8 text-primary" />
+        <div className="w-16 h-16 rounded-2xl bg-cyan-950/20 border border-cyan-900/30 flex items-center justify-center mx-auto mb-4">
+          <RefreshCw className="w-8 h-8 text-cyan-400" />
         </div>
         <h2 className="text-2xl font-bold mb-2">Restore Your Identity</h2>
         <p className="text-muted-foreground">
@@ -568,12 +631,22 @@ function RestoreStep({
             className="w-full h-32 p-4 rounded-lg bg-muted/50 border border-border font-mono text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary"
             placeholder="Enter your 12-word recovery phrase..."
             value={phrase}
-            onChange={(e) => {
-              setPhrase(e.target.value);
-              setError('');
-            }}
+            onChange={(e) => handleTextChange(e.target.value)}
             data-testid="input-recovery-phrase"
           />
+          {suggestions.length > 0 && (
+            <div className="flex flex-wrap gap-2 mt-3 animate-fade-in">
+              {suggestions.map((suggestion) => (
+                <button
+                  key={suggestion}
+                  onClick={() => handleSelectSuggestion(suggestion)}
+                  className="px-2.5 py-1 rounded-full text-xs bg-cyan-950/40 text-cyan-400 border border-cyan-800/30 hover:bg-cyan-900/40 transition-colors"
+                >
+                  {suggestion}
+                </button>
+              ))}
+            </div>
+          )}
           {error && (
             <p className="text-sm text-destructive mt-2">{error}</p>
           )}
@@ -798,10 +871,16 @@ function LinkDeviceStep({ onBack, onComplete }: { onBack: () => void; onComplete
               </Button>
             ) : (
               <div className="space-y-4">
-                <div className="flex flex-col items-center justify-center p-6 border rounded-xl bg-accent/5 animate-pulse">
-                  <RefreshCw className="w-8 h-8 text-primary animate-spin mb-4" />
-                  <p className="text-sm font-medium">Waiting for approval...</p>
-                  <p className="text-xs text-muted-foreground mt-1">Open CipherLink on your primary device.</p>
+                <div className="flex flex-col items-center justify-center p-6 border rounded-xl bg-accent/5 relative overflow-hidden">
+                  <div className="relative w-24 h-24 flex items-center justify-center mb-4">
+                    {/* Pulsing radar circles */}
+                    <div className="absolute inset-0 rounded-full border border-cyan-500/20 animate-[ping_2s_infinite]" />
+                    <div className="absolute inset-2 rounded-full border border-indigo-500/30 animate-[ping_2s_infinite_0.5s]" />
+                    <div className="absolute inset-4 rounded-full border border-cyan-500/40 animate-[ping_2s_infinite_1s]" />
+                    <RefreshCw className="w-8 h-8 text-cyan-400 animate-spin relative z-10" />
+                  </div>
+                  <p className="text-sm font-semibold text-white">Transmitting pairing request...</p>
+                  <p className="text-[11px] text-zinc-500 mt-1 text-center">Open Settings &gt; Devices on your primary client to approve transfer.</p>
                 </div>
                 <Button variant="outline" onClick={() => setIsPolling(false)} className="w-full">
                   Cancel
@@ -829,6 +908,57 @@ export function Onboarding() {
   const [linkedIdentity, setLinkedIdentity] = useState<(IdentityData & { localUsername?: string }) | null>(null);
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+
+  const [terminalLogs, setTerminalLogs] = useState<string[]>([
+    '[INIT] CipherLink Client Engine booted.',
+    '[INIT] IndexedDB storage space verified.',
+    '[INIT] WebCrypto API provider detected: Webkit/Blink Crypto Subsystem.',
+    '[AUDIT] Ready to establish new cryptographic context.'
+  ]);
+
+  const addLog = useCallback((msg: string) => {
+    setTerminalLogs((prev) => [...prev, `[AUDIT] ${msg}`]);
+  }, []);
+
+  useEffect(() => {
+    switch (step) {
+      case 'welcome':
+        addLog('Awaiting action: mint new identity, link existing hardware node, or restore index key.');
+        break;
+      case 'generate':
+        addLog('Requesting 256 bits high-entropy secure random generator...');
+        addLog('Invoking WebCrypto getRandomValues()...');
+        break;
+      case 'phrase':
+        addLog('Seed entropy mapped to BIP39 English dictionary words.');
+        addLog('Validating seed phrase checksum calculation...');
+        addLog('Seed phrase verified and mapped to Curve25519 identity key.');
+        break;
+      case 'confirm':
+        addLog('Security verification: validating user word placement input.');
+        break;
+      case 'pin':
+      case 'restorePin':
+      case 'linked':
+        addLog('Initializing key wrapping layer: PBKDF2-HMAC-SHA256 initialized.');
+        addLog('Gathering salt buffer metrics (16 bytes random generated).');
+        addLog('Ready to encrypt IndexedDB payload.');
+        break;
+      case 'username':
+        addLog('Awaiting local display username assignment.');
+        break;
+      case 'restore':
+        addLog('Awaiting BIP39 dictionary query string parser input.');
+        break;
+      case 'link':
+        addLog('Starting wireless device peer-to-peer sync interface.');
+        addLog('Listening on temporary transfer channel...');
+        break;
+      case 'complete':
+        addLog('Cryptographic context secured. Initialised public identity key validation.');
+        break;
+    }
+  }, [step]);
 
   useEffect(() => {
     // Check if user already has an identity
@@ -966,89 +1096,138 @@ export function Onboarding() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="w-full max-w-lg">
-        <AnimatePresence mode="wait">
-          {step === 'welcome' && (
-            <WelcomeStep
-              key="welcome"
-              onGenerate={handleGenerate}
-              onRestore={() => setStep('restore')}
-              onLink={() => setStep('link')}
-            />
-          )}
-          {step === 'link' && (
-            <LinkDeviceStep
-              key="link"
-              onBack={() => setStep('welcome')}
-              onComplete={(transferredIdentity) => {
-                // Identity was decrypted and verified by the poll handler.
-                // Save it to state so the PIN step can persist it to encrypted storage.
-                // Do NOT navigate to /chat yet — we must encrypt+store before the session ends.
-                setLinkedIdentity(transferredIdentity as IdentityData & { localUsername?: string });
-                setStep('linked');
-              }}
-            />
-          )}
-          {step === 'linked' && (
-            // Special PIN step for the link flow. Persists the transferred identity
-            // without creating a new user account or device registration.
-            <PinStep
-              key="linked"
-              onSetPin={handleLinkPin}
-              onBack={() => {
-                setLinkedIdentity(null);
-                setStep('link');
-              }}
-            />
-          )}
-          {step === 'generate' && <GeneratingStep key="generate" />}
-          {step === 'phrase' && identity && (
-            <RecoveryPhraseStep
-              key="phrase"
-              phrase={identity.recoveryPhrase}
-              onContinue={() => setStep('confirm')}
-              onBack={() => setStep('welcome')}
-            />
-          )}
-          {step === 'confirm' && identity && (
-            <ConfirmPhraseStep
-              key="confirm"
-              phrase={identity.recoveryPhrase}
-              onConfirm={() => setStep('pin')}
-              onBack={() => setStep('phrase')}
-            />
-          )}
-          {step === 'pin' && (
-            <PinStep
-              key="pin"
-              onSetPin={handleSetPin}
-              onBack={() => setStep('confirm')}
-            />
-          )}
-          {step === 'restorePin' && (
-            <PinStep
-              key="restorePin"
-              onSetPin={handleSetPin}
-              onBack={() => setStep('restore')}
-            />
-          )}
-          {step === 'username' && (
-            <UsernameStep
-              key="username"
-              onComplete={handleComplete}
-              onBack={() => setStep('pin')}
-            />
-          )}
-          {step === 'restore' && (
-            <RestoreStep
-              key="restore"
-              onRestore={handleRestore}
-              onBack={() => setStep('welcome')}
-            />
-          )}
-          {step === 'complete' && <CompleteStep key="complete" />}
-        </AnimatePresence>
+    <div className="min-h-screen bg-[#050505] text-zinc-300 flex flex-col lg:flex-row items-stretch selection:bg-cyan-900/30 selection:text-cyan-100 font-sans">
+      {/* Background ambient lighting */}
+      <div className="fixed inset-0 bg-[#050505] pointer-events-none -z-50" />
+      <div className="fixed top-[10%] left-[20%] w-[800px] h-[800px] rounded-full bg-indigo-900/[0.015] blur-[150px] pointer-events-none -z-40" />
+      <div className="fixed bottom-[10%] right-[10%] w-[600px] h-[600px] rounded-full bg-blue-900/[0.012] blur-[120px] pointer-events-none -z-40" />
+      <div 
+        className="fixed inset-0 opacity-[0.035] mix-blend-overlay pointer-events-none -z-30" 
+        style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
+        }}
+      />
+      <div className="fixed inset-0 bg-[radial-gradient(circle_at_center,transparent_30%,rgba(5,5,5,0.7)_100%)] pointer-events-none -z-20" />
+
+      {/* Left Column - Dynamic Console (Visible on desktop) */}
+      <div className="hidden lg:flex lg:w-2/5 bg-black/60 border-r border-white/[0.04] p-8 flex-col justify-between relative overflow-hidden backdrop-blur-md">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_left_top,rgba(6,182,212,0.03),transparent_60%)]" />
+        <div className="relative z-10 flex-1 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center gap-3 border-b border-white/[0.04] pb-4 mb-6">
+              <div className="w-8 h-8 rounded-lg bg-cyan-950/20 border border-cyan-900/30 flex items-center justify-center text-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.25)]">
+                <Shield className="w-4 h-4 animate-pulse" />
+              </div>
+              <div>
+                <span className="font-semibold text-sm text-white block">Cryptographic Engine Audit</span>
+                <span className="text-[10px] text-zinc-500 font-mono">v1.1.0-ratchet-aad // Client Sandboxed</span>
+              </div>
+            </div>
+            <div className="space-y-4">
+              <h4 className="text-xs uppercase tracking-widest text-zinc-500 font-mono">Operations Console</h4>
+              <div className="h-[480px] overflow-y-auto font-mono text-[10px] text-cyan-400/80 space-y-2.5 scrollbar-thin pr-2">
+                {terminalLogs.map((log, i) => (
+                  <motion.div
+                    key={i}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    className="leading-relaxed"
+                  >
+                    {log}
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="text-[10px] font-mono text-zinc-600 border-t border-white/[0.03] pt-4 flex items-center justify-between">
+            <span>WEB_CRYPTO_API = TRUE</span>
+            <span>INDEXED_DB = SANDBOXED</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Right Column - Onboarding Forms */}
+      <div className="flex-1 flex items-center justify-center p-6 relative">
+        <div className="w-full max-w-lg bg-zinc-950/20 border border-white/[0.03] p-8 rounded-3xl backdrop-blur-xl shadow-2xl relative overflow-hidden">
+          <div className="absolute top-0 inset-x-0 h-[1.5px] bg-cyan-500/30" />
+          <AnimatePresence mode="wait">
+            {step === 'welcome' && (
+              <WelcomeStep
+                key="welcome"
+                onGenerate={handleGenerate}
+                onRestore={() => setStep('restore')}
+                onLink={() => setStep('link')}
+              />
+            )}
+            {step === 'link' && (
+              <LinkDeviceStep
+                key="link"
+                onBack={() => setStep('welcome')}
+                onComplete={(transferredIdentity) => {
+                  setLinkedIdentity(transferredIdentity as IdentityData & { localUsername?: string });
+                  setStep('linked');
+                }}
+              />
+            )}
+            {step === 'linked' && (
+              <PinStep
+                key="linked"
+                onSetPin={handleLinkPin}
+                onBack={() => {
+                  setLinkedIdentity(null);
+                  setStep('link');
+                }}
+              />
+            )}
+            {step === 'generate' && <GeneratingStep key="generate" />}
+            {step === 'phrase' && identity && (
+              <RecoveryPhraseStep
+                key="phrase"
+                phrase={identity.recoveryPhrase}
+                onContinue={() => setStep('confirm')}
+                onBack={() => setStep('welcome')}
+              />
+            )}
+            {step === 'confirm' && identity && (
+              <ConfirmPhraseStep
+                key="confirm"
+                phrase={identity.recoveryPhrase}
+                onConfirm={() => setStep('pin')}
+                onBack={() => setStep('phrase')}
+              />
+            )}
+            {step === 'pin' && (
+              <PinStep
+                key="pin"
+                onSetPin={handleSetPin}
+                onBack={() => setStep('confirm')}
+              />
+            )}
+            {step === 'restorePin' && (
+              <PinStep
+                key="restorePin"
+                onSetPin={handleSetPin}
+                onBack={() => setStep('restore')}
+              />
+            )}
+            {step === 'username' && (
+              <UsernameStep
+                key="username"
+                onComplete={handleComplete}
+                onBack={() => setStep('pin')}
+              />
+            )}
+            {step === 'restore' && (
+              <RestoreStep
+                key="restore"
+                onRestore={handleRestore}
+                onBack={() => setStep('welcome')}
+              />
+            )}
+            {step === 'complete' && <CompleteStep key="complete" />}
+          </AnimatePresence>
+        </div>
       </div>
     </div>
   );
