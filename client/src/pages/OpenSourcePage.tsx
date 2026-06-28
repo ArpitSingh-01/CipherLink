@@ -144,10 +144,19 @@ export default function OpenSourcePage() {
               modify, merge, publish, distribute, sublicense, and/or sell copies of the
               software, subject to including the copyright notice.
             </p>
-            <p className="text-sm text-muted-foreground leading-relaxed">
+            <p className="text-sm text-muted-foreground leading-relaxed mb-4">
               This means you can fork CipherLink, run your own instance, or integrate
               the encryption library into your own projects.
             </p>
+            <a
+              href="https://github.com/ArpitSingh-01/CipherLink"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
+            >
+              <Code2 className="w-4 h-4" />
+              View on GitHub →
+            </a>
           </div>
         </section>
 
