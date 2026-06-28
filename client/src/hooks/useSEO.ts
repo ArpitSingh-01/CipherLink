@@ -6,59 +6,82 @@ interface SEOProps {
   keywords?: string;
   ogImage?: string;
   canonicalUrl?: string;
+  robots?: string;
+  structuredData?: Record<string, unknown>;
 }
 
 /**
- * Custom React hook to dynamically manage document titles and meta tags for SPA routing.
+ * Custom React hook to dynamically manage SEO meta tags for SPA routing.
+ * Updates on every navigation so each page has correct meta independently.
  */
-export function useSEO({ title, description, keywords, ogImage, canonicalUrl }: SEOProps) {
+export function useSEO({
+  title,
+  description,
+  keywords,
+  ogImage,
+  canonicalUrl,
+  robots,
+  structuredData,
+}: SEOProps) {
   useEffect(() => {
-    // Update Title
+    // Title
     document.title = title;
 
-    // Helper to update or create meta tags in <head>
-    const updateMetaTag = (name: string, content: string, isProperty = false) => {
-      const attribute = isProperty ? 'property' : 'name';
-      let element = document.querySelector(`meta[${attribute}="${name}"]`);
-      if (!element) {
-        element = document.createElement('meta');
-        element.setAttribute(attribute, name);
-        document.head.appendChild(element);
+    const updateMeta = (nameOrProp: string, content: string, isProp = false) => {
+      const attr = isProp ? 'property' : 'name';
+      let el = document.querySelector<HTMLMetaElement>(`meta[${attr}="${nameOrProp}"]`);
+      if (!el) {
+        el = document.createElement('meta');
+        el.setAttribute(attr, nameOrProp);
+        document.head.appendChild(el);
       }
-      element.setAttribute('content', content);
+      el.setAttribute('content', content);
     };
 
-    // Update standard meta tags
-    updateMetaTag('description', description);
-    if (keywords) {
-      updateMetaTag('keywords', keywords);
-    }
+    // Canonical URL — use pathname only to exclude params/hash
+    const pageUrl = canonicalUrl || (window.location.origin + window.location.pathname);
 
-    // Update OpenGraph tags
-    updateMetaTag('og:title', title, true);
-    updateMetaTag('og:description', description, true);
+    updateMeta('description', description);
+    if (keywords) updateMeta('keywords', keywords);
+    if (robots) updateMeta('robots', robots);
+
+    // Open Graph
+    updateMeta('og:title', title, true);
+    updateMeta('og:description', description, true);
+    updateMeta('og:url', pageUrl, true);
     if (ogImage) {
-      updateMetaTag('og:image', ogImage, true);
+      updateMeta('og:image', ogImage, true);
     }
 
-    // Update Twitter Card tags
-    updateMetaTag('twitter:title', title);
-    updateMetaTag('twitter:description', description);
-    if (ogImage) {
-      updateMetaTag('twitter:image', ogImage);
+    // Twitter
+    updateMeta('twitter:title', title);
+    updateMeta('twitter:description', description);
+    updateMeta('twitter:url', pageUrl);
+    if (ogImage) updateMeta('twitter:image', ogImage);
+
+    // Canonical link element
+    let canonical = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
+    if (!canonical) {
+      canonical = document.createElement('link');
+      canonical.setAttribute('rel', 'canonical');
+      document.head.appendChild(canonical);
+    }
+    canonical.setAttribute('href', pageUrl);
+
+    // Structured data injection (per-page schemas beyond what index.html has)
+    if (structuredData) {
+      const existingScript = document.querySelector('script[data-seo-dynamic]');
+      if (existingScript) existingScript.remove();
+      const script = document.createElement('script');
+      script.type = 'application/ld+json';
+      script.setAttribute('data-seo-dynamic', 'true');
+      script.textContent = JSON.stringify(structuredData);
+      document.head.appendChild(script);
     }
 
-    // Update Canonical Link tag
-    let canonicalElement = document.querySelector('link[rel="canonical"]');
-    if (canonicalUrl) {
-      if (!canonicalElement) {
-        canonicalElement = document.createElement('link');
-        canonicalElement.setAttribute('rel', 'canonical');
-        document.head.appendChild(canonicalElement);
-      }
-      canonicalElement.setAttribute('href', canonicalUrl);
-    } else if (canonicalElement) {
-      canonicalElement.setAttribute('href', window.location.href);
-    }
-  }, [title, description, keywords, ogImage, canonicalUrl]);
+    // Cleanup dynamic structured data on unmount
+    return () => {
+      document.querySelector('script[data-seo-dynamic]')?.remove();
+    };
+  }, [title, description, keywords, ogImage, canonicalUrl, robots, structuredData]);
 }

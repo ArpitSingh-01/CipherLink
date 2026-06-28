@@ -1,0 +1,21 @@
+{
+  "name": "CipherLink",
+  "short_name": "CipherLink",
+  "description": "End-to-end encrypted messaging built on the Signal Protocol. No phone number, no email required.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#09090b",
+  "theme_color": "#06b6d4",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["productivity", "social", "utilities"],
+  "lang": "en",
+  "dir": "ltr"
+}

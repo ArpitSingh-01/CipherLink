@@ -1,0 +1,105 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" fill="none">
+  <!-- Background -->
+  <rect width="1200" height="630" fill="#09090b"/>
+  
+  <!-- Grid pattern (subtle) -->
+  <defs>
+    <pattern id="grid" width="60" height="60" patternUnits="userSpaceOnUse">
+      <path d="M 60 0 L 0 0 0 60" fill="none" stroke="rgba(255,255,255,0.03)" stroke-width="1"/>
+    </pattern>
+  </defs>
+  <rect width="1200" height="630" fill="url(#grid)"/>
+  
+  <!-- Glow orb top-left -->
+  <ellipse cx="200" cy="150" rx="300" ry="200" fill="rgba(6,182,212,0.06)"/>
+  <!-- Glow orb bottom-right -->
+  <ellipse cx="1050" cy="500" rx="250" ry="180" fill="rgba(139,92,246,0.06)"/>
+  
+  <!-- Lock icon (center-left) -->
+  <g transform="translate(120, 240)">
+    <rect x="0" y="55" width="80" height="65" rx="10" fill="#06b6d4"/>
+    <path d="M14 55V36A26 26 0 0 1 66 36V55" stroke="#06b6d4" stroke-width="8"
+          stroke-linecap="round"/>
+    <circle cx="40" cy="87" r="10" fill="#09090b"/>
+  </g>
+  
+  <!-- Brand name -->
+  <text x="240" y="285" font-family="'Space Grotesk', 'Inter', sans-serif"
+        font-size="72" font-weight="700" fill="white" letter-spacing="-2">
+    CipherLink
+  </text>
+  
+  <!-- Tagline -->
+  <text x="240" y="345" font-family="'Space Grotesk', 'Inter', sans-serif"
+        font-size="28" font-weight="400" fill="rgba(161,161,170,0.9)">
+    Privacy is the architecture.
+  </text>
+  
+  <!-- Tech badges -->
+  <g transform="translate(240, 390)">
+    <rect width="170" height="36" rx="6" fill="rgba(6,182,212,0.12)"
+          stroke="rgba(6,182,212,0.3)" stroke-width="1"/>
+    <text x="14" y="23" font-family="monospace" font-size="14" fill="#06b6d4">
+      Signal Protocol
+    </text>
+  </g>
+  <g transform="translate(422, 390)">
+    <rect width="140" height="36" rx="6" fill="rgba(139,92,246,0.12)"
+          stroke="rgba(139,92,246,0.3)" stroke-width="1"/>
+    <text x="14" y="23" font-family="monospace" font-size="14" fill="#a78bfa">
+      X3DH + Ratchet
+    </text>
+  </g>
+  <g transform="translate(574, 390)">
+    <rect width="112" height="36" rx="6" fill="rgba(34,197,94,0.12)"
+          stroke="rgba(34,197,94,0.3)" stroke-width="1"/>
+    <text x="14" y="23" font-family="monospace" font-size="14" fill="#4ade80">
+      Open Source
+    </text>
+  </g>
+  
+  <!-- URL -->
+  <text x="240" y="480" font-family="monospace" font-size="18"
+        fill="rgba(113,113,122,0.8)">
+    cipher-link-alpha.vercel.app
+  </text>
+  
+  <!-- Right side decorative terminal -->
+  <rect x="780" y="140" width="340" height="310" rx="12"
+        fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+  <rect x="780" y="140" width="340" height="36" rx="12"
+        fill="rgba(255,255,255,0.04)"/>
+  <circle cx="808" cy="158" r="6" fill="rgba(239,68,68,0.6)"/>
+  <circle cx="828" cy="158" r="6" fill="rgba(234,179,8,0.6)"/>
+  <circle cx="848" cy="158" r="6" fill="rgba(34,197,94,0.6)"/>
+  <text x="800" y="200" font-family="monospace" font-size="12" fill="rgba(34,197,94,0.8)">
+    $ encrypt --ratchet
+  </text>
+  <text x="800" y="225" font-family="monospace" font-size="11" fill="rgba(161,161,170,0.6)">
+    ✓ X3DH handshake complete
+  </text>
+  <text x="800" y="248" font-family="monospace" font-size="11" fill="rgba(161,161,170,0.6)">
+    ✓ Root key derived
+  </text>
+  <text x="800" y="271" font-family="monospace" font-size="11" fill="rgba(161,161,170,0.6)">
+    ✓ Chain keys initialized
+  </text>
+  <text x="800" y="294" font-family="monospace" font-size="11" fill="rgba(6,182,212,0.8)">
+    ⇢ AES-256-GCM encrypting...
+  </text>
+  <text x="800" y="320" font-family="monospace" font-size="11" fill="rgba(161,161,170,0.4)">
+    [BLOB: a3f2c91b 47de8102...]
+  </text>
+  <text x="800" y="344" font-family="monospace" font-size="11" fill="rgba(139,92,246,0.7)">
+    ✓ Forward secrecy guaranteed
+  </text>
+  <text x="800" y="368" font-family="monospace" font-size="11" fill="rgba(161,161,170,0.4)">
+    ✓ Key material wiped
+  </text>
+  <text x="800" y="398" font-family="monospace" font-size="11" fill="rgba(34,197,94,0.9)">
+    [SESSION ESTABLISHED]
+  </text>
+  <text x="800" y="421" font-family="monospace" font-size="11" fill="rgba(6,182,212,0.6)">
+    $ _
+  </text>
+</svg>

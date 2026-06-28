@@ -1,8 +1,15 @@
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Shield, ArrowLeft } from "lucide-react";
+import { useSEO } from "@/hooks/useSEO";
 
 export default function NotFound() {
+  useSEO({
+    title: 'Page Not Found — CipherLink',
+    description: 'This page does not exist.',
+    robots: 'noindex',
+  });
+
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-background">
       <div className="text-center">

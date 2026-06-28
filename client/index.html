@@ -2,49 +2,115 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <meta name="theme-color" content="#000000" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#06b6d4" />
+
+    <!-- Primary Meta -->
+    <title>CipherLink — End-to-End Encrypted Messaging | Signal Protocol</title>
+    <meta name="description" content="CipherLink is a free, open-source encrypted messaging app built on the Signal Protocol (X3DH + Double Ratchet). No phone number. No email. No account required — just cryptographic identity." />
+    <meta name="keywords" content="encrypted messaging, Signal Protocol, X3DH, Double Ratchet, end-to-end encryption, private chat, forward secrecy, zero knowledge, anonymous messaging" />
+    <meta name="author" content="CipherLink" />
+    <meta name="robots" content="index, follow" />
+    <meta name="googlebot" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+
+    <!-- Canonical -->
+    <link rel="canonical" href="https://cipher-link-alpha.vercel.app/" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="CipherLink" />
+    <meta property="og:title" content="CipherLink — End-to-End Encrypted Messaging | Signal Protocol" />
+    <meta property="og:description" content="Free encrypted messaging app using the Signal Protocol. X3DH key agreement + Double Ratchet forward secrecy. No account required." />
+    <meta property="og:url" content="https://cipher-link-alpha.vercel.app/" />
+    <meta property="og:image" content="https://cipher-link-alpha.vercel.app/og-image.svg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="CipherLink encrypted messaging app — Signal Protocol" />
+    <meta property="og:locale" content="en_US" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="CipherLink — End-to-End Encrypted Messaging" />
+    <meta name="twitter:description" content="Free encrypted messaging built on the Signal Protocol. X3DH + Double Ratchet. No account required." />
+    <meta name="twitter:image" content="https://cipher-link-alpha.vercel.app/og-image.svg" />
+    <meta name="twitter:url" content="https://cipher-link-alpha.vercel.app/" />
+
+    <!-- Mobile / PWA -->
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <title>CipherLink — Private Messaging with End-to-End Encryption</title>
-    <meta name="description" content="CipherLink is a privacy-first messaging platform built on the Double Ratchet protocol with X3DH key agreement. No phone number, no email — your identity is a cryptographic key pair." />
-    <meta name="keywords" content="encrypted messaging, Double Ratchet, X3DH, end-to-end encryption, ephemeral messages, private chat, forward secrecy" />
-    
-    <!-- Open Graph / Social Media -->
-    <meta property="og:type" content="website" />
-    <meta property="og:title" content="CipherLink — Privacy is the architecture" />
-    <meta property="og:description" content="End-to-end encrypted messaging with forward secrecy, ephemeral messages, and no personal identifiers required." />
-    <meta property="og:site_name" content="CipherLink" />
-    
-    <!-- Twitter Card -->
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="CipherLink — Privacy is the architecture" />
-    <meta name="twitter:description" content="End-to-end encrypted messaging built on the Double Ratchet protocol. No phone number. No email." />
-    
-    <link rel="icon" type="image/png" href="/favicon.png" />
-    <link rel="canonical" href="https://cipherlink.app/" />
-    
-    <!-- Structured Data JSON-LD -->
+    <meta name="apple-mobile-web-app-title" content="CipherLink" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.json" />
+
+    <!-- Icons -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    <!-- Preconnect for performance -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+    <!-- Fonts — preload critical weight first -->
+    <link rel="preload" as="style"
+          href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Roboto+Mono:wght@400;500&display=swap" />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&family=Roboto+Mono:wght@400;500&display=swap"
+          rel="stylesheet" />
+
+    <!-- Structured Data: SoftwareApplication -->
     <script type="application/ld+json">
-      {
-        "@context": "https://schema.org",
-        "@type": "SoftwareApplication",
-        "name": "CipherLink",
-        "operatingSystem": "All",
-        "applicationCategory": "CommunicationApplication",
-        "description": "CipherLink is a privacy-first end-to-end encrypted messaging client implementing the Signal Double Ratchet and X3DH protocols.",
-        "offers": {
-          "@type": "Offer",
-          "price": "0",
-          "priceCurrency": "USD"
-        }
-      }
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "CipherLink",
+      "url": "https://cipher-link-alpha.vercel.app",
+      "description": "CipherLink is a free, open-source end-to-end encrypted messaging application implementing the Signal Protocol (X3DH key agreement and Double Ratchet algorithm) for maximum privacy.",
+      "applicationCategory": "CommunicationApplication",
+      "applicationSubCategory": "Encrypted Messaging",
+      "operatingSystem": "Web",
+      "browserRequirements": "Requires JavaScript. Works in all modern browsers.",
+      "softwareVersion": "1.0.0",
+      "releaseNotes": "Signal Protocol implementation with X3DH + Double Ratchet",
+      "license": "https://opensource.org/licenses/MIT",
+      "isAccessibleForFree": true,
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "author": {
+        "@type": "Person",
+        "name": "Arpit Singh"
+      },
+      "featureList": [
+        "End-to-end encryption using Signal Protocol",
+        "X3DH Extended Triple Diffie-Hellman key agreement",
+        "Double Ratchet forward secrecy",
+        "Self-destructing ephemeral messages",
+        "No phone number or email needed",
+        "Open source MIT license"
+      ],
+      "screenshot": "https://cipher-link-alpha.vercel.app/og-image.svg"
+    }
     </script>
 
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Roboto+Mono:ital,wght@0,100..700;1,100..700&family=Space+Grotesk:wght@300..700&display=swap" rel="stylesheet">
+    <!-- Structured Data: WebSite with SearchAction -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "CipherLink",
+      "url": "https://cipher-link-alpha.vercel.app",
+      "description": "Open-source end-to-end encrypted messaging built on the Signal Protocol.",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": {
+          "@type": "EntryPoint",
+          "urlTemplate": "https://cipher-link-alpha.vercel.app/?q={search_term_string}"
+        },
+        "query-input": "required name=search_term_string"
+      }
+    }
+    </script>
   </head>
   <body class="dark">
     <div id="root"></div>

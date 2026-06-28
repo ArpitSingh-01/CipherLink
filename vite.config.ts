@@ -15,6 +15,26 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Vendor chunk: React + routing (small, cached separately)
+          'vendor-react': ['react', 'react-dom', 'wouter'],
+          // Animation chunk: framer-motion is large (~100KB)
+          'vendor-framer': ['framer-motion'],
+          // Crypto chunk: noble curves + ratchet (never needed on landing)
+          'vendor-crypto': ['@noble/curves'],
+          // UI components chunk
+          'vendor-radix': [
+            '@radix-ui/react-dialog',
+            '@radix-ui/react-dropdown-menu',
+            '@radix-ui/react-tooltip',
+            '@radix-ui/react-toast',
+            '@radix-ui/react-select',
+          ],
+        },
+      },
+    },
   },
   server: {
     fs: {

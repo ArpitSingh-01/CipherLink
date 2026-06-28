@@ -88,6 +88,12 @@ npm run test:watch
 
 ```
 ├── client/           # React frontend
+│   ├── public/       # Static assets (favicon, og-image, manifest, sitemap, robots)
+│   └── src/
+│       ├── components/  # UI components (LandingPage, ChatPage, Onboarding, etc.)
+│       ├── pages/       # Content pages (EncryptionPage, OpenSourcePage, PrivacyPolicy)
+│       ├── hooks/       # Custom hooks (useSEO, etc.)
+│       └── lib/         # Crypto, ratchet, storage, session
 ├── server/           # Express backend
 │   ├── db.ts         # Database connection
 │   ├── storage.ts    # Storage interface
@@ -95,9 +101,35 @@ npm run test:watch
 │   ├── cleanup.ts    # Expired data cleanup
 │   └── routes.ts     # API routes
 ├── shared/           # Shared types and schema
-└── .kiro/            # Kiro specs and configuration
+└── docs/             # Encryption architecture documentation
+```
+
+## SEO & Asset Notes
+
+### OG Image
+`client/public/og-image.svg` is the social sharing preview image (1200×630).
+For best compatibility with Twitter/X (which prefers raster images), convert it
+to PNG at 1200×630:
+
+```bash
+# Using Inkscape:
+inkscape og-image.svg -w 1200 -h 630 -o og-image.png
+
+# Or using ImageMagick:
+convert -background none -size 1200x630 og-image.svg og-image.png
+```
+
+Then update the `og:image` and `twitter:image` meta tags in `index.html` to
+reference `/og-image.png` instead of `/og-image.svg`.
+
+### Apple Touch Icon
+`apple-touch-icon.png` should be a 180×180 PNG derived from `favicon.svg`:
+
+```bash
+inkscape favicon.svg -w 180 -h 180 -o client/public/apple-touch-icon.png
 ```
 
 ## License
 
 MIT
+

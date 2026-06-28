@@ -215,9 +215,9 @@ function VerificationDialog({
 
 export function ChatPage() {
   useSEO({
-    title: 'CipherLink — Decrypted Chat Client',
-    description: 'End-to-end encrypted chat dashboard. Sandboxed client-side key agreements active.',
-    keywords: 'encrypted chat, privacy chat room, double ratchet messaging'
+    title: 'CipherLink — Encrypted Chat',
+    description: 'Private end-to-end encrypted messaging.',
+    robots: 'noindex, nofollow',
   });
 
   const [, setLocation] = useLocation();

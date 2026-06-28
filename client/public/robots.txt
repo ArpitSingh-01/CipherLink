@@ -1,5 +1,14 @@
 User-agent: *
 Allow: /
-Allow: /onboarding
+Allow: /encryption
+Allow: /open-source
+Allow: /privacy-policy
 Disallow: /chat
-Sitemap: https://cipherlink.app/sitemap.xml
+Disallow: /onboarding
+Disallow: /api/
+
+# Sitemap
+Sitemap: https://cipher-link-alpha.vercel.app/sitemap.xml
+
+# Crawl-delay (be nice)
+Crawl-delay: 1

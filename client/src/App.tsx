@@ -1,4 +1,5 @@
 import { Switch, Route } from "wouter";
+import { lazy, Suspense } from "react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -9,6 +10,11 @@ import { ChatPage } from "@/components/ChatPage";
 import NotFound from "@/pages/NotFound";
 import { setPersistentHooks } from '@/lib/session';
 import { Analytics } from '@vercel/analytics/react';
+
+// Lazy-loaded content pages (code-split for landing page performance)
+const EncryptionPage = lazy(() => import('@/pages/EncryptionPage'));
+const OpenSourcePage = lazy(() => import('@/pages/OpenSourcePage'));
+const PrivacyPolicyPage = lazy(() => import('@/pages/PrivacyPolicyPage'));
 
 // Register TOFU persistent hooks at module level — BEFORE any component renders.
 // This ensures persistentHooks is never null when dhRatchet or initSession fires,
@@ -32,12 +38,33 @@ setPersistentHooks({
   onRatchetKeyObserved: async (): Promise<boolean> => true, // Allow automatic sub-key rotation
 });
 
+const LoadingSpinner = () => (
+  <div className="min-h-screen flex items-center justify-center">
+    <div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full" />
+  </div>
+);
+
 function Router() {
   return (
     <Switch>
       <Route path="/" component={LandingPage} />
       <Route path="/onboarding" component={Onboarding} />
       <Route path="/chat" component={ChatPage} />
+      <Route path="/encryption" component={() => (
+        <Suspense fallback={<LoadingSpinner />}>
+          <EncryptionPage />
+        </Suspense>
+      )} />
+      <Route path="/open-source" component={() => (
+        <Suspense fallback={<LoadingSpinner />}>
+          <OpenSourcePage />
+        </Suspense>
+      )} />
+      <Route path="/privacy-policy" component={() => (
+        <Suspense fallback={<LoadingSpinner />}>
+          <PrivacyPolicyPage />
+        </Suspense>
+      )} />
       <Route component={NotFound} />
     </Switch>
   );
