@@ -3,6 +3,7 @@ import { Link } from 'wouter';
 import { useSEO } from '@/hooks/useSEO';
 import { Shield, Key, Lock, RefreshCw, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { SiteLayout } from '@/components/layout/SiteLayout';
 
 const FAQ_STRUCTURED_DATA = {
   "@context": "https://schema.org",
@@ -79,24 +80,24 @@ export default function EncryptionPage() {
     description: 'Technical deep-dive into CipherLink\'s encryption: Signal Protocol implementation with X3DH key agreement, Double Ratchet algorithm, AES-256-GCM, and Ed25519 authentication. No phone number required.',
     keywords: 'signal protocol, x3dh, double ratchet, end-to-end encryption, forward secrecy, aes-256-gcm, ed25519',
     canonicalUrl: 'https://cipher-link-alpha.vercel.app/encryption',
-    structuredData: { "@graph": [FAQ_STRUCTURED_DATA, ARTICLE_STRUCTURED_DATA] },
+    structuredData: {
+      "@graph": [
+        FAQ_STRUCTURED_DATA,
+        ARTICLE_STRUCTURED_DATA,
+        {
+          "@context": "https://schema.org",
+          "@type": "BreadcrumbList",
+          "itemListElement": [
+            { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://cipher-link-alpha.vercel.app/" },
+            { "@type": "ListItem", "position": 2, "name": "How It Works", "item": "https://cipher-link-alpha.vercel.app/encryption" }
+          ]
+        }
+      ]
+    },
   });
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      {/* Nav bar — simple, consistent with landing page */}
-      <nav className="border-b border-border/50 px-6 py-4 flex items-center justify-between max-w-5xl mx-auto">
-        <Link href="/">
-          <a className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
-            <ArrowLeft className="w-4 h-4" />
-            CipherLink
-          </a>
-        </Link>
-        <Link href="/onboarding">
-          <Button size="sm">Get Started</Button>
-        </Link>
-      </nav>
-
+    <SiteLayout>
       <main className="max-w-4xl mx-auto px-6 py-16">
         {/* Hero */}
         <div className="mb-16">
@@ -362,17 +363,6 @@ export default function EncryptionPage() {
           </Link>
         </div>
       </main>
-
-      {/* Footer */}
-      <footer className="border-t border-border/50 px-6 py-8">
-        <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
-          <span>© {new Date().getFullYear()} CipherLink</span>
-          <nav className="flex items-center gap-6">
-            <Link href="/open-source"><a className="hover:text-foreground transition-colors">Open Source</a></Link>
-            <Link href="/privacy-policy"><a className="hover:text-foreground transition-colors">Privacy Policy</a></Link>
-          </nav>
-        </div>
-      </footer>
-    </div>
+    </SiteLayout>
   );
 }

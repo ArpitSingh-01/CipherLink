@@ -13,7 +13,9 @@ import { Analytics } from '@vercel/analytics/react';
 
 // Lazy-loaded content pages (code-split for landing page performance)
 const EncryptionPage = lazy(() => import('@/pages/EncryptionPage'));
-const OpenSourcePage = lazy(() => import('@/pages/OpenSourcePage'));
+const ComparePage = lazy(() => import('@/pages/ComparePage'));
+const FAQPage = lazy(() => import('@/pages/FAQPage'));
+const TechnologyPage = lazy(() => import('@/pages/TechnologyPage'));
 const PrivacyPolicyPage = lazy(() => import('@/pages/PrivacyPolicyPage'));
 
 // Register TOFU persistent hooks at module level — BEFORE any component renders.
@@ -44,27 +46,44 @@ const LoadingSpinner = () => (
   </div>
 );
 
+// Define OUTSIDE the Router/App functions so references are stable
+const LazyEncryption = () => (
+  <Suspense fallback={<LoadingSpinner />}>
+    <EncryptionPage />
+  </Suspense>
+);
+const LazyCompare = () => (
+  <Suspense fallback={<LoadingSpinner />}>
+    <ComparePage />
+  </Suspense>
+);
+const LazyFAQ = () => (
+  <Suspense fallback={<LoadingSpinner />}>
+    <FAQPage />
+  </Suspense>
+);
+const LazyTechnology = () => (
+  <Suspense fallback={<LoadingSpinner />}>
+    <TechnologyPage />
+  </Suspense>
+);
+const LazyPrivacy = () => (
+  <Suspense fallback={<LoadingSpinner />}>
+    <PrivacyPolicyPage />
+  </Suspense>
+);
+
 function Router() {
   return (
     <Switch>
       <Route path="/" component={LandingPage} />
       <Route path="/onboarding" component={Onboarding} />
       <Route path="/chat" component={ChatPage} />
-      <Route path="/encryption" component={() => (
-        <Suspense fallback={<LoadingSpinner />}>
-          <EncryptionPage />
-        </Suspense>
-      )} />
-      <Route path="/open-source" component={() => (
-        <Suspense fallback={<LoadingSpinner />}>
-          <OpenSourcePage />
-        </Suspense>
-      )} />
-      <Route path="/privacy-policy" component={() => (
-        <Suspense fallback={<LoadingSpinner />}>
-          <PrivacyPolicyPage />
-        </Suspense>
-      )} />
+      <Route path="/encryption" component={LazyEncryption} />
+      <Route path="/compare" component={LazyCompare} />
+      <Route path="/faq" component={LazyFAQ} />
+      <Route path="/technology" component={LazyTechnology} />
+      <Route path="/privacy-policy" component={LazyPrivacy} />
       <Route component={NotFound} />
     </Switch>
   );

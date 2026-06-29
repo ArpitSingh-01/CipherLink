@@ -1,4 +1,4 @@
-import { pgTable, text, varchar, boolean, integer, timestamp, index, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, boolean, integer, timestamp, index, uniqueIndex, uuid, check } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { sql } from "drizzle-orm";
@@ -60,6 +60,7 @@ export const friends = pgTable("friends", {
   userPublicKeyIdx: index("friends_user_public_key_idx").on(table.userPublicKey),
   friendPublicKeyIdx: index("friends_friend_public_key_idx").on(table.friendPublicKey),
   userFriendUniqueIdx: uniqueIndex("friends_user_friend_unique").on(table.userPublicKey, table.friendPublicKey),
+  statusCheck: check('friends_valid_status', sql`${table.status} IN ('pending', 'accepted')`),
 }));
 
 export const insertFriendSchema = createInsertSchema(friends).pick({
@@ -316,3 +317,8 @@ export interface DecryptedMessage {
 export interface TypingState {
   [publicKey: string]: { typingWith: string; expiresAt: number };
 }
+
+export const FriendStatusEnum = z.enum(['pending', 'accepted']);
+export const LinkingStatusEnum = z.enum(['pending', 'approved', 'rejected']);
+export type FriendStatus = z.infer<typeof FriendStatusEnum>;
+export type LinkingStatus = z.infer<typeof LinkingStatusEnum>;

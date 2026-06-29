@@ -52,9 +52,8 @@ export interface SessionState {
   sessionNoncePrefix: Uint8Array;
   // O(1) replay guard: Set for fast lookup + FIFO queue for eviction
   seenNoncesSet: Set<string>;
+  /** FIFO queue for eviction ordering. seenNoncesSet is the O(1) lookup. */
   seenNoncesQueue: string[];
-  // Legacy compat alias — kept in sync with seenNoncesQueue
-  seenNonces: string[];
   createdAt: number;
   lastUsedAt: number;
 }

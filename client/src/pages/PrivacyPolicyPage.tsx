@@ -3,6 +3,7 @@ import { Link } from 'wouter';
 import { useSEO } from '@/hooks/useSEO';
 import { ArrowLeft, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { SiteLayout } from '@/components/layout/SiteLayout';
 
 const STRUCTURED_DATA = {
   "@context": "https://schema.org",
@@ -23,24 +24,23 @@ export default function PrivacyPolicyPage() {
     description: 'CipherLink privacy policy. No personal data collected, no plaintext stored, no account required. End-to-end encrypted messaging with zero-knowledge architecture.',
     keywords: 'privacy policy, encrypted messaging privacy, zero knowledge messaging, no data collection',
     canonicalUrl: 'https://cipher-link-alpha.vercel.app/privacy-policy',
-    structuredData: STRUCTURED_DATA,
+    structuredData: {
+      "@graph": [
+        STRUCTURED_DATA,
+        {
+          "@context": "https://schema.org",
+          "@type": "BreadcrumbList",
+          "itemListElement": [
+            { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://cipher-link-alpha.vercel.app/" },
+            { "@type": "ListItem", "position": 2, "name": "Privacy Policy", "item": "https://cipher-link-alpha.vercel.app/privacy-policy" }
+          ]
+        }
+      ]
+    },
   });
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      {/* Nav */}
-      <nav className="border-b border-border/50 px-6 py-4 flex items-center justify-between max-w-5xl mx-auto">
-        <Link href="/">
-          <a className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
-            <ArrowLeft className="w-4 h-4" />
-            CipherLink
-          </a>
-        </Link>
-        <Link href="/onboarding">
-          <Button size="sm">Get Started</Button>
-        </Link>
-      </nav>
-
+    <SiteLayout>
       <main className="max-w-3xl mx-auto px-6 py-16">
         {/* Hero */}
         <div className="mb-12">
@@ -66,7 +66,7 @@ export default function PrivacyPolicyPage() {
                 <li>All messages are <strong className="text-foreground">end-to-end encrypted</strong> using the Signal Protocol. The server stores only ciphertext.</li>
                 <li>Your identity is a <strong className="text-foreground">cryptographic key pair</strong> generated locally in your browser.</li>
                 <li>Private keys <strong className="text-foreground">never leave your device</strong>.</li>
-                <li>CipherLink is <strong className="text-foreground">open source</strong> (MIT license) — anyone can verify these claims.</li>
+                <li>CipherLink is <strong className="text-foreground">independently verifiable</strong> — the cryptographic protocol is documented and publicly auditable.</li>
               </ul>
             </div>
           </section>
@@ -184,8 +184,7 @@ export default function PrivacyPolicyPage() {
             <h2 className="text-xl font-bold mb-4">8. Changes to This Policy</h2>
             <p className="text-muted-foreground leading-relaxed">
               If this privacy policy changes, the update will be reflected in the "Last
-              updated" date at the top of this page and committed to the open-source
-              repository. Since CipherLink collects no contact information, we cannot
+              updated" date at the top of this page. Since CipherLink collects no contact information, we cannot
               send notifications about policy changes — check this page periodically.
             </p>
           </section>
@@ -195,22 +194,12 @@ export default function PrivacyPolicyPage() {
             <h2 className="text-xl font-bold mb-4">9. Contact</h2>
             <p className="text-muted-foreground leading-relaxed">
               For questions about this privacy policy or CipherLink's security practices,
-              please open an issue on the GitHub repository.
+              please reach out through the project website or contact the developer directly.
             </p>
           </section>
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-border/50 px-6 py-8 mt-16">
-        <div className="max-w-3xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
-          <span>© {new Date().getFullYear()} CipherLink</span>
-          <nav className="flex items-center gap-6">
-            <Link href="/encryption"><a className="hover:text-foreground transition-colors">Encryption</a></Link>
-            <Link href="/open-source"><a className="hover:text-foreground transition-colors">Open Source</a></Link>
-          </nav>
-        </div>
-      </footer>
-    </div>
+    </SiteLayout>
   );
 }

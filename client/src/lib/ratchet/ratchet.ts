@@ -5,7 +5,41 @@ import { getSkippedMessageKey, storeSkippedMessageKey } from './skipped.js';
 
 import { SkippedKey } from './skipped.js';
 
-export const PROTOCOL_VERSION = 2;
+// Wire format for received headers — ratchetPubKey arrives in multiple encodings
+// depending on whether the message was serialized (string) or in-memory (Uint8Array)
+type RawRatchetKey =
+  | Uint8Array
+  | string                     // hex (64 chars) or base64
+  | Record<string | number, any>;    // legacy: JSON.stringify(Uint8Array) artifact
+
+interface WireHeader extends Omit<Header, 'ratchetPubKey'> {
+  ratchetPubKey: RawRatchetKey;
+}
+
+function parseRatchetKey(raw: RawRatchetKey): Uint8Array {
+  if (raw instanceof Uint8Array) return raw;
+  if (typeof raw === 'string') {
+    if (/^[0-9a-fA-F]{64}$/.test(raw)) {
+      const bytes = new Uint8Array(32);
+      for (let i = 0; i < 32; i++) {
+        bytes[i] = parseInt(raw.slice(i * 2, i * 2 + 2), 16);
+      }
+      return bytes;
+    }
+    return fromBase64(raw);
+  }
+  if (raw && typeof raw === 'object') {
+    const vals = Object.values(raw) as number[];
+    if (!vals.every(v => typeof v === 'number' && v >= 0 && v <= 255)) {
+      throw new Error('ratchetPubKey: invalid legacy numeric object — values out of byte range');
+    }
+    console.warn('[CipherLink] Deprecated ratchet key format (numeric object). Upgrade sender client.');
+    return new Uint8Array(vals);
+  }
+  throw new Error('ratchetPubKey: missing or unrecognised encoding format');
+}
+
+export const PROTOCOL_VERSION = 3;
 export const CIPHER_SUITE = "AES-256-GCM";
 
 // NOTE: Per-process nonce prefix removed — session.sessionNoncePrefix is the sole
@@ -29,6 +63,7 @@ type PendingTOFUCheck = {
   resolve: (allowed: boolean) => void;
 };
 const pendingTOFUQueue: PendingTOFUCheck[] = [];
+const MAX_PENDING_TOFU = 100;
 
 export function setPersistentHooks(hooks: IPersistentHooks) {
   persistentHooks = hooks;
@@ -52,6 +87,10 @@ async function checkTOFU(
       : persistentHooks.onRatchetKeyObserved;
     return fn(sessionId, fingerprint);
   }
+  if (pendingTOFUQueue.length >= MAX_PENDING_TOFU) {
+    console.warn('[CipherLink] TOFU queue full — persistentHooks not registered. Session rejected.');
+    return false;
+  }
   return new Promise(resolve => {
     pendingTOFUQueue.push({ type, sessionId, fingerprint, resolve });
   });
@@ -65,7 +104,9 @@ export function serializeSessionState(session: SessionState): string {
   // Persist queue; Set is rebuilt on deserialize
   const queue = session.seenNoncesQueue ?? Array.from(session.seenNoncesSet ?? []);
   jsonSession.seenNoncesQueue = queue;
-  jsonSession.seenNonces = queue; // legacy compat
+  // Keep emitting seenNonces in serialized JSON for backward compat with old
+  // IDB sessions. New sessions don't have it in the interface — it's write-only here.
+  jsonSession.seenNonces = queue; // legacy deserializer fallback — do NOT read back
   delete jsonSession.seenNoncesSet; // not JSON-serializable
   return JSON.stringify(jsonSession, (_key, val) => val instanceof Uint8Array ? bytesToBase64(val) : val);
 }
@@ -202,23 +243,24 @@ export async function initSession(
     secureClear(rdh1); secureClear(rdh2); secureClear(rdh3);
   }
 
-  // Signal spec initial root KDF with fixed F constant (32×0xFF) as IKM for extract phase.
-  // kdfRoot(rootKey, dhOutput, info) uses rootKey as HKDF salt and dhOutput as IKM (Signal-correct).
-  // For the bootstrap step, we use F||sharedSecret as the IKM.
   const F = new Uint8Array(32).fill(0xFF);
-  const zeroSalt = new Uint8Array(32);
-  const derived = await kdfRoot(concat(F, sharedSecret), zeroSalt, "CipherLink-RootKDF");
-  let rootKey = derived.newRootKey;
+  // Signal spec bootstrap: F || sharedSecret is the IKM. Use a domain-separator as salt
+  // (non-secret constant), matching the Signal spec's intent that IKM carries the secret.
+  const bootstrapSalt = new TextEncoder().encode("CipherLink-X3DH-Bootstrap-v2");
+  const bootstrapIKM = concat(F, sharedSecret);
+  const bootstrapPRK = await hkdf(bootstrapIKM, bootstrapSalt, "CipherLink-RootKDF", 64);
+  let rootKey = bootstrapPRK.slice(0, 32) as Uint8Array;
+  const bootstrapChainBase = bootstrapPRK.slice(32, 64) as Uint8Array;
+  secureClear(bootstrapIKM);
 
-  // Bootstrap chains: used as initial recv chain placeholders.
-  // The REAL send chain is derived below via the Signal-spec initial DH ratchet.
-  const bootstrapChains = await hkdf(sharedSecret, zeroSalt, "CipherLink-InitChains-v2", 64);
+  const bootstrapChains = await hkdf(bootstrapChainBase, bootstrapSalt, "CipherLink-InitChains-v2", 64);
+  secureClear(bootstrapChainBase);
   let initialChainSend: Uint8Array = isInitiator
-    ? bootstrapChains.slice(0, 32)
-    : bootstrapChains.slice(32, 64);
+    ? bootstrapChains.slice(0, 32) as Uint8Array
+    : bootstrapChains.slice(32, 64) as Uint8Array;
   let initialChainRecv: Uint8Array = isInitiator
-    ? bootstrapChains.slice(32, 64)
-    : bootstrapChains.slice(0, 32);
+    ? bootstrapChains.slice(32, 64) as Uint8Array
+    : bootstrapChains.slice(0, 32) as Uint8Array;
   secureClear(sharedSecret);
   secureClear(bootstrapChains);
 
@@ -363,7 +405,6 @@ export async function initSession(
     localSessionPublicKey,
     remoteSessionPublicKey,
     sessionNoncePrefix,
-    seenNonces: seenNoncesQueue,     // legacy compat field
     seenNoncesQueue,
     seenNoncesSet,
     createdAt: now(),
@@ -429,8 +470,8 @@ function serializeHeader(header: Header): Uint8Array {
 function checkNonce(session: SessionState, msgId: string): void {
   // Migrate legacy sessions that only have seenNonces array
   if (!session.seenNoncesSet) {
-    session.seenNoncesQueue = [...(session.seenNonces ?? [])];
-    session.seenNoncesSet = new Set<string>(session.seenNoncesQueue);
+    session.seenNoncesQueue = [];
+    session.seenNoncesSet = new Set<string>();
   }
   if (session.seenNoncesSet.has(msgId)) {
     throw new Error("Replay Protection: duplicate nonce detected");
@@ -439,8 +480,8 @@ function checkNonce(session: SessionState, msgId: string): void {
 
 function commitNonce(session: SessionState, msgId: string): void {
   if (!session.seenNoncesSet) {
-    session.seenNoncesQueue = [...(session.seenNonces ?? [])];
-    session.seenNoncesSet = new Set<string>(session.seenNoncesQueue);
+    session.seenNoncesQueue = [];
+    session.seenNoncesSet = new Set<string>();
   }
   session.seenNoncesSet.add(msgId);
   session.seenNoncesQueue.push(msgId);
@@ -452,7 +493,6 @@ function commitNonce(session: SessionState, msgId: string): void {
     const evicted = session.seenNoncesQueue.shift()!;
     session.seenNoncesSet.delete(evicted);
   }
-  session.seenNonces = session.seenNoncesQueue; // keep legacy in sync
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -514,6 +554,13 @@ export async function encryptMessage(
   plaintext: Uint8Array,
   ttlMs: number = 24 * 60 * 60 * 1000
 ): Promise<EncryptedMessage> {
+  const MAX_MESSAGES_PER_SESSION = Number.MAX_SAFE_INTEGER - 1; // 2^53 - 2
+  if (session.globalSendMessageNumber >= MAX_MESSAGES_PER_SESSION) {
+    throw new Error(
+      '[CipherLink] Session message counter exhausted (2^53 messages reached). ' +
+      'This session must be renegotiated. Please start a new conversation.'
+    );
+  }
   const MAX_TTL = 24 * 60 * 60 * 1000;
   const MIN_TTL = 60 * 1000;
   ttlMs = Math.max(MIN_TTL, Math.min(ttlMs, MAX_TTL));
@@ -590,33 +637,9 @@ export async function decryptMessage(session: SessionState, message: EncryptedMe
   assertNotExpired(message.expiresAt, currentTime);
   session.lastUsedAt = currentTime;
 
-  const rawRatchetKey = (message.header as any).ratchetPubKey;
-  const parsedHeader = {
-    ...message.header,
-    // ratchetPubKey arrives in different forms depending on the path:
-    // 1. hex string (new format: bytesToHex before JSON)
-    // 2. base64 string (legacy format)
-    // 3. Uint8Array (in-memory, not serialized)
-    // 4. plain numeric object {0:1,...} (old JSON.stringify(Uint8Array) corruption)
-    ratchetPubKey: (() => {
-      if (rawRatchetKey instanceof Uint8Array) return rawRatchetKey;
-      if (typeof rawRatchetKey === 'string') {
-        // Hex: exactly 64 lowercase hex chars = 32 bytes
-        if (/^[0-9a-fA-F]{64}$/.test(rawRatchetKey)) {
-          const bytes = new Uint8Array(32);
-          for (let i = 0; i < 32; i++) bytes[i] = parseInt(rawRatchetKey.slice(i * 2, i * 2 + 2), 16);
-          return bytes;
-        }
-        // Base64 fallback
-        return fromBase64(rawRatchetKey);
-      }
-      if (rawRatchetKey && typeof rawRatchetKey === 'object') {
-        // Legacy: JSON.stringify(Uint8Array) → {0:1, 1:2, ...}
-        const vals = Object.values(rawRatchetKey) as number[];
-        return new Uint8Array(vals);
-      }
-      throw new Error('ratchetPubKey missing or unrecognised format');
-    })(),
+  const parsedHeader: Header = {
+    ...(message.header as WireHeader),
+    ratchetPubKey: parseRatchetKey((message.header as WireHeader).ratchetPubKey),
   };
 
   if (!(message.nonce instanceof Uint8Array)) throw new Error("Invalid nonce type");

@@ -44,6 +44,15 @@ export function logSecurityEvent(event: Omit<SecurityEvent, 'timestamp'>): void 
 }
 
 function trackEventForAlerting(event: SecurityEvent) {
+  // Hard cap: under sustained DDoS with many unique IPs, the map can grow
+  // faster than the 60s cleanup interval removes entries. Evict oldest 20% if
+  // we exceed 50,000 entries (each entry is ~100 bytes → ~5MB max).
+  if (recentEvents.size > 50_000) {
+    const keys = Array.from(recentEvents.keys());
+    const evictCount = Math.floor(keys.length * 0.2);
+    for (let i = 0; i < evictCount; i++) recentEvents.delete(keys[i]);
+  }
+
   // Use only first 16 chars of publicKey in tracking key
   const key = `${event.type}:${event.ip}:${(event.publicKey || 'unknown').slice(0, 16)}`;
   const now = Date.now();

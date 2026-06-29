@@ -16,7 +16,7 @@ export async function kdfRoot(rootKey: Uint8Array, dhOutput: Uint8Array, infoLab
   const derived = await hkdf(dhOutput, rootKey, infoLabel, 64);
   
   return {
-    newRootKey: derived.slice(0, 32),
-    newChainKey: derived.slice(32, 64)
+    newRootKey: derived.slice(0, 32) as Uint8Array,
+    newChainKey: derived.slice(32, 64) as Uint8Array
   };
 }

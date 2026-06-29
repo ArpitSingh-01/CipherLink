@@ -2,6 +2,7 @@
  * LandingPage component displaying features, technology details, and app branding.
  */
 import { Link } from 'wouter';
+import { SiteFooter } from '@/components/layout/SiteFooter';
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { Shield, Lock, ArrowRight, Eye, Fingerprint, Timer, Server, KeyRound, CheckCircle2, ShieldAlert } from 'lucide-react';
 import { motion, useScroll, useTransform, useMotionValue, useSpring, useInView, useTime, AnimatePresence } from 'framer-motion';
@@ -552,10 +553,20 @@ function Nav() {
           </div>
         </Link>
 
-        <nav className="hidden md:flex items-center gap-10 text-[13px] text-zinc-500 font-medium">
+        <nav className="hidden md:flex items-center gap-8 text-[13px] text-zinc-500 font-medium">
           <a href="#product" className="hover:text-zinc-200 transition-colors duration-300">Product</a>
-          <a href="#protocol" className="hover:text-zinc-200 transition-colors duration-300">Protocol</a>
-          <a href="#security" className="hover:text-zinc-200 transition-colors duration-300">Architecture</a>
+          <Link href="/encryption">
+            <a className="hover:text-zinc-200 transition-colors duration-300">How It Works</a>
+          </Link>
+          <Link href="/compare">
+            <a className="hover:text-zinc-200 transition-colors duration-300">Compare</a>
+          </Link>
+          <Link href="/faq">
+            <a className="hover:text-zinc-200 transition-colors duration-300">FAQ</a>
+          </Link>
+          <Link href="/technology">
+            <a className="hover:text-zinc-200 transition-colors duration-300">Technology</a>
+          </Link>
         </nav>
 
         <Link href="/onboarding">
@@ -982,7 +993,7 @@ function CTA() {
               Initialize Client Instance
             </button>
           </Link>
-          <p className="mt-6 text-[13px] text-zinc-600 font-medium">Free. Open Protocol. No strings attached.</p>
+          <p className="mt-6 text-[13px] text-zinc-600 font-medium">Free. Zero-Knowledge. No strings attached.</p>
         </Reveal>
       </div>
     </section>
@@ -1004,7 +1015,9 @@ function Footer() {
           <a href="#product" className="hover:text-zinc-300 transition-colors">Product</a>
           <a href="#protocol" className="hover:text-zinc-300 transition-colors">Protocol</a>
           <a href="#security" className="hover:text-zinc-300 transition-colors">Security</a>
-          <a href="#" className="hover:text-zinc-300 transition-colors">Source Code</a>
+          <Link href="/compare">
+            <a className="hover:text-zinc-300 transition-colors">Compare</a>
+          </Link>
         </nav>
 
         <p className="text-[11px] text-zinc-700 font-mono">
@@ -1035,7 +1048,7 @@ export function LandingPage() {
         <ArchitectureSection />
         <CTA />
       </main>
-      <Footer />
+      <SiteFooter />
     </div>
   );
 }

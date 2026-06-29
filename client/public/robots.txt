@@ -1,14 +1,12 @@
 User-agent: *
 Allow: /
 Allow: /encryption
-Allow: /open-source
+Allow: /compare
+Allow: /faq
+Allow: /technology
 Allow: /privacy-policy
 Disallow: /chat
 Disallow: /onboarding
 Disallow: /api/
-
-# Sitemap
 Sitemap: https://cipher-link-alpha.vercel.app/sitemap.xml
-
-# Crawl-delay (be nice)
 Crawl-delay: 1
